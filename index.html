@@ -16,8 +16,6 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { overflow: hidden; background: #1a1a2e; font-family: 'Nunito', sans-serif; }
-
-    /* Loading Screen */
     #loadingScreen {
       position: fixed; inset: 0; z-index: 10000;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
@@ -59,8 +57,6 @@
       background: linear-gradient(90deg, #e94560, #ff6b6b);
       transition: width 0.3s ease;
     }
-
-    /* Orientation Modal */
     #orientationModal {
       position: fixed; inset: 0; z-index: 9999;
       background: rgba(26,26,46,0.98);
@@ -71,8 +67,6 @@
     #orientationModal h1 { font-size: 2rem; margin-bottom: 1rem; }
     #orientationModal p { font-size: 1rem; opacity: 0.7; font-family: 'Nunito', sans-serif; }
     @media (orientation: landscape) { #orientationModal { display: none !important; } }
-
-    /* Navigation */
     .side-nav {
       position: fixed; z-index: 100;
       display: flex; align-items: center; justify-content: center;
@@ -93,8 +87,6 @@
     .side-nav.left .nav-button { writing-mode: sideways-lr; }
     .side-nav.right .nav-button { writing-mode: vertical-rl; }
     .side-nav:hover .nav-button { text-shadow: 0 0 20px rgba(233,69,96,0.8); transform: scale(1.05); }
-
-    /* Modal */
     .modal-overlay {
       display: none; position: fixed; inset: 0;
       background: rgba(0,0,0,0.75); z-index: 1001;
@@ -151,8 +143,6 @@
     }
     .modal-nav button:hover { background: rgba(233,69,96,0.3); }
     .modal-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
-
-    /* Notification */
     .notif {
       position: fixed; left: 50%; bottom: 40px;
       transform: translateX(-50%) translateY(100px);
@@ -166,36 +156,26 @@
     .notif.show {
       opacity: 1; transform: translateX(-50%) translateY(0);
     }
-
-    /* Scrollbar */
     .modal-body::-webkit-scrollbar { width: 6px; }
     .modal-body::-webkit-scrollbar-track { background: transparent; }
     .modal-body::-webkit-scrollbar-thumb { background: rgba(233,69,96,0.3); border-radius: 3px; }
-
-    /* Canvas cursor */
     canvas { cursor: grab; }
     canvas:active { cursor: grabbing; }
   </style>
 </head>
 <body>
-
-  <!-- Orientation Modal -->
   <div id="orientationModal" class="hidden">
     <div style="text-align:center">
       <h1>📱 Rotate to Landscape</h1>
       <p>Please rotate your device for the best experience</p>
     </div>
   </div>
-
-  <!-- Loading Screen -->
   <div id="loadingScreen">
     <div class="loading-logo"><span>R</span></div>
     <div id="loadingText">Loading World...</div>
     <div id="loadingPercent">0%</div>
     <div class="loading-bar-outer"><div class="loading-bar-inner" id="loadingBar"></div></div>
   </div>
-
-  <!-- Navigation -->
   <div class="side-nav left" style="opacity:0;pointer-events:none;">
     <button class="nav-button" id="navLeftBtn">Experience</button>
   </div>
