@@ -1,585 +1,1166 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>Raunak's Portfolio</title>
-  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <script type="importmap">
-  {"imports": {"three": "https://cdn.jsdelivr.net/npm/three@v0.182.0/build/three.module.js","three/addons/": "https://cdn.jsdelivr.net/npm/three@v0.182.0/examples/jsm/"}}
-  </script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { overflow: hidden; background: #1a1a2e; font-family: 'Nunito', sans-serif; }
-    #loadingScreen {
-      position: fixed; inset: 0; z-index: 10000;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      cursor: pointer; transition: opacity 0.5s ease-out;}
-    #loadingScreen.fade-out { opacity: 0; pointer-events: none; }
-    .loading-logo {
-      width: 120px; height: 120px;
-      background: linear-gradient(135deg, #e94560, #ff6b6b);
-      border-radius: 24px; margin-bottom: 30px;
-      display: flex; align-items: center; justify-content: center;
-      box-shadow: 0 0 60px rgba(233,69,96,0.4);
-      animation: logoPulse 2s ease-in-out infinite;}
-    .loading-logo span {
-      font-family: 'Fredoka One', cursive; font-size: 48px; color: white;}
-    @keyframes logoPulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.05); }}
-    #loadingText {
-      color: white; font-family: 'Fredoka One', cursive;
-      font-size: 22px; letter-spacing: 3px; opacity: 0.9;
-      text-shadow: 0 0 20px rgba(233,69,96,0.5);}
-    #loadingPercent {
-      color: #e94560; font-family: 'Fredoka One', cursive;
-      font-size: 16px; margin-top: 8px;}
-    .loading-bar-outer {
-      width: 280px; height: 8px; background: rgba(255,255,255,0.1);
-      border-radius: 4px; margin-top: 20px; overflow: hidden;}
-    .loading-bar-inner {
-      height: 100%; width: 0%; border-radius: 4px;
-      background: linear-gradient(90deg, #e94560, #ff6b6b);
-      transition: width 0.3s ease;}
-    #orientationModal {
-      position: fixed; inset: 0; z-index: 9999;
-      background: rgba(26,26,46,0.98);
-      display: flex; align-items: center; justify-content: center;
-      font-family: 'Fredoka One', cursive; color: white;}
-    #orientationModal.hidden { display: none; }
-    #orientationModal h1 { font-size: 2rem; margin-bottom: 1rem; }
-    #orientationModal p { font-size: 1rem; opacity: 0.7; font-family: 'Nunito', sans-serif; }
-    @media (orientation: landscape) { #orientationModal { display: none !important; } }
-    .side-nav {
-      position: fixed; z-index: 100;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; transition: all 0.3s ease;}
-    .side-nav.left { left: 0; top: 0; width: 60px; height: 100vh; }
-    .side-nav.right { right: 0; top: 0; width: 60px; height: 100vh; }
-    .side-nav.bottom { bottom: 0; left: 0; width: 100%; height: 60px; }
-    .side-nav:hover { background: rgba(233,69,96,0.15); }
-    .nav-button {
-      background: none; border: none; cursor: pointer;
-      font-family: 'Fredoka One', cursive; font-size: 16px;
-      color: white; letter-spacing: 2px; text-transform: uppercase;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.5);
-      transition: all 0.3s ease; padding: 0;}
-    .side-nav.left .nav-button { writing-mode: sideways-lr; }
-    .side-nav.right .nav-button { writing-mode: vertical-rl; }
-    .side-nav:hover .nav-button { text-shadow: 0 0 20px rgba(233,69,96,0.8); transform: scale(1.05); }
-    .modal-overlay {
-      display: none; position: fixed; inset: 0;
-      background: rgba(0,0,0,0.75); z-index: 1001;
-      align-items: center; justify-content: center;
-      backdrop-filter: blur(8px);}
-    .modal-overlay.active { display: flex; }
-    .modal-container {
-      width: min(600px, 90vw); max-height: 80vh;
-      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-      border-radius: 20px; border: 2px solid rgba(233,69,96,0.3);
-      box-shadow: 0 0 60px rgba(233,69,96,0.2), 0 20px 60px rgba(0,0,0,0.5);
-      overflow: hidden;}
-    .modal-header {
-      background: linear-gradient(90deg, #e94560, #ff6b6b);
-      padding: 18px 24px; display: flex;
-      align-items: center; justify-content: space-between;}
-    .modal-header h2 {
-      font-family: 'Fredoka One', cursive; color: white;
-      font-size: 20px; letter-spacing: 1px;}
-    .modal-close {
-      background: rgba(255,255,255,0.2); border: none;
-      color: white; width: 32px; height: 32px; border-radius: 8px;
-      font-size: 18px; cursor: pointer; transition: background 0.2s;}
-    .modal-close:hover { background: rgba(255,255,255,0.3); }
-    .modal-body {
-      padding: 24px; color: #ddd; font-size: 15px; line-height: 1.7;
-      max-height: 60vh; overflow-y: auto;}
-    .modal-body h3 {
-      font-family: 'Fredoka One', cursive; color: #e94560;
-      font-size: 17px; margin: 16px 0 8px 0;}
-    .modal-body h3:first-child { margin-top: 0; }
-    .modal-body p { margin-bottom: 8px; }
-    .modal-body .tag {
-      display: inline-block; background: rgba(233,69,96,0.15);
-      color: #ff6b6b; padding: 3px 10px; border-radius: 6px;
-      font-size: 12px; font-weight: 700; margin: 2px 4px 2px 0;}
-    .modal-nav {
-      display: flex; justify-content: space-between; padding: 16px 24px;
-      border-top: 1px solid rgba(255,255,255,0.05);}
-    .modal-nav button {
-      background: rgba(233,69,96,0.15); border: 1px solid rgba(233,69,96,0.3);
-      color: #ff6b6b; padding: 8px 20px; border-radius: 8px;
-      font-family: 'Fredoka One', cursive; font-size: 13px;
-      cursor: pointer; transition: all 0.2s;}
-    .modal-nav button:hover { background: rgba(233,69,96,0.3); }
-    .modal-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
-    .notif {
-      position: fixed; left: 50%; bottom: 40px;
-      transform: translateX(-50%) translateY(100px);
-      color: white; padding: 14px 28px; border-radius: 12px;
-      font-size: 16px; font-family: 'Fredoka One', cursive;
-      background: linear-gradient(135deg, #e94560, #ff6b6b);
-      box-shadow: 0 8px 30px rgba(233,69,96,0.4);
-      opacity: 0; z-index: 1000; pointer-events: none;
-      transition: all 0.4s cubic-bezier(.68,-0.6,.32,1.6);}
-    .notif.show {
-      opacity: 1; transform: translateX(-50%) translateY(0);}
-    .modal-body::-webkit-scrollbar { width: 6px; }
-    .modal-body::-webkit-scrollbar-track { background: transparent; }
-    .modal-body::-webkit-scrollbar-thumb { background: rgba(233,69,96,0.3); border-radius: 3px; }
-    canvas { cursor: grab; }
-    canvas:active { cursor: grabbing; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Raunak Mondal — CS @ CMU</title>
+<meta name="description" content="Raunak Mondal — CS student at Carnegie Mellon University. AI/ML researcher, published author, and builder.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #0a0a0f;
+  --bg-card: #12121a;
+  --bg-card-hover: #1a1a28;
+  --text: #e8e6e3;
+  --text-dim: #8a8a9a;
+  --accent: #5ce1e6;
+  --accent2: #c084fc;
+  --accent3: #f472b6;
+  --border: #1e1e2e;
+  --radius: 16px;
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'Space Mono', 'JetBrains Mono', monospace;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-display);
+  line-height: 1.6;
+  overflow-x: hidden;
+  cursor: none;
+}
+
+/* Custom cursor */
+.cursor {
+  position: fixed;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transition: transform 0.15s ease, border-color 0.3s;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: difference;
+}
+.cursor-dot {
+  position: fixed;
+  width: 6px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+}
+.cursor.hovering {
+  transform: translate(-50%, -50%) scale(2.5);
+  border-color: var(--accent2);
+  background: rgba(192, 132, 252, 0.1);
+}
+
+/* Canvas */
+#aurora-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Nav */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(20px);
+  background: rgba(10, 10, 15, 0.7);
+  border-bottom: 1px solid var(--border);
+}
+nav .logo {
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: -0.5px;
+}
+nav .nav-links { display: flex; gap: 32px; }
+nav .nav-links a {
+  color: var(--text-dim);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: lowercase;
+  transition: color 0.3s;
+  position: relative;
+}
+nav .nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -4px; left: 0;
+  width: 0; height: 2px;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+nav .nav-links a:hover { color: var(--accent); }
+nav .nav-links a:hover::after { width: 100%; }
+
+/* Sections */
+section {
+  position: relative;
+  z-index: 1;
+  padding: 100px 40px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Hero */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-top: 80px;
+}
+.hero-tag {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--accent);
+  margin-bottom: 16px;
+  opacity: 0;
+  animation: slideUp 0.8s ease forwards 0.2s;
+}
+.hero h1 {
+  font-size: clamp(48px, 8vw, 96px);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -3px;
+  margin-bottom: 24px;
+  opacity: 0;
+  animation: slideUp 0.8s ease forwards 0.4s;
+}
+.hero h1 .gradient-text {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, var(--accent3) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.hero-sub {
+  font-size: 20px;
+  color: var(--text-dim);
+  max-width: 600px;
+  font-weight: 300;
+  margin-bottom: 40px;
+  opacity: 0;
+  animation: slideUp 0.8s ease forwards 0.6s;
+}
+.hero-links {
+  display: flex;
+  gap: 16px;
+  opacity: 0;
+  animation: slideUp 0.8s ease forwards 0.8s;
+}
+.hero-links a {
+  padding: 12px 28px;
+  border-radius: 50px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+.hero-links .primary {
+  background: var(--accent);
+  color: var(--bg);
+}
+.hero-links .primary:hover { background: #4dd4d8; transform: translateY(-2px); box-shadow: 0 8px 30px rgba(92, 225, 230, 0.3); }
+.hero-links .secondary {
+  border: 1px solid var(--border);
+  color: var(--text);
+  background: transparent;
+}
+.hero-links .secondary:hover { border-color: var(--accent2); color: var(--accent2); }
+
+.hero-stats {
+  display: flex;
+  gap: 48px;
+  margin-top: 64px;
+  opacity: 0;
+  animation: slideUp 0.8s ease forwards 1s;
+}
+.stat-item .stat-num {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--accent);
+  font-family: var(--font-mono);
+}
+.stat-item .stat-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Section headers */
+.section-header {
+  margin-bottom: 60px;
+}
+.section-header .label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 12px;
+}
+.section-header h2 {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 700;
+  letter-spacing: -2px;
+}
+
+/* About */
+.about-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: start;
+}
+.about-text p {
+  color: var(--text-dim);
+  font-size: 17px;
+  margin-bottom: 20px;
+  line-height: 1.8;
+}
+.about-text p strong { color: var(--text); font-weight: 600; }
+
+.skills-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+.skill-tag {
+  padding: 8px 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  font-size: 13px;
+  font-family: var(--font-mono);
+  color: var(--text-dim);
+  transition: all 0.3s;
+}
+.skill-tag:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(92, 225, 230, 0.15);
+}
+
+/* GitHub */
+.github-section { padding-top: 40px; }
+.github-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  overflow: hidden;
+}
+.gh-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+.gh-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gh-header a {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 14px;
+  font-family: var(--font-mono);
+}
+#contributions-graph {
+  width: 100%;
+  overflow-x: auto;
+}
+.contrib-grid {
+  display: flex;
+  gap: 3px;
+  justify-content: flex-end;
+}
+.contrib-week { display: flex; flex-direction: column; gap: 3px; }
+.contrib-day {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  background: #161622;
+  transition: all 0.2s;
+}
+.contrib-day:hover { transform: scale(1.4); }
+.contrib-day.level-1 { background: #0e4429; }
+.contrib-day.level-2 { background: #006d32; }
+.contrib-day.level-3 { background: #26a641; }
+.contrib-day.level-4 { background: #39d353; }
+.contrib-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+.contrib-legend .contrib-day { width: 12px; height: 12px; cursor: default; }
+.contrib-legend .contrib-day:hover { transform: none; }
+.gh-stats-row {
+  display: flex;
+  gap: 32px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+.gh-stat {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+.gh-stat span { color: var(--accent); font-weight: 700; font-size: 20px; margin-right: 6px; }
+
+/* Experience Timeline */
+.timeline {
+  position: relative;
+  padding-left: 40px;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent), var(--accent2), transparent);
+}
+.timeline-item {
+  position: relative;
+  margin-bottom: 48px;
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.6s ease;
+}
+.timeline-item.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -46px; top: 6px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 3px solid var(--accent);
+}
+.timeline-year {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.timeline-item h3 { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+.timeline-role {
+  font-size: 15px;
+  color: var(--accent2);
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+.timeline-desc {
+  color: var(--text-dim);
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+/* Publications */
+.pub-list { display: flex; flex-direction: column; gap: 20px; }
+.pub-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 32px;
+  transition: all 0.4s;
+  position: relative;
+  overflow: hidden;
+}
+.pub-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 4px; height: 100%;
+  background: linear-gradient(to bottom, var(--accent), var(--accent2));
+}
+.pub-card:hover {
+  border-color: var(--accent);
+  transform: translateX(8px);
+  box-shadow: 0 8px 40px rgba(92, 225, 230, 0.08);
+}
+.pub-venue {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.pub-card h3 { font-size: 18px; font-weight: 600; margin-bottom: 8px; line-height: 1.4; }
+.pub-role { font-size: 14px; color: var(--text-dim); }
+
+/* Projects */
+.projects-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 24px;
+}
+.project-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: all 0.4s;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+.project-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 60px rgba(92, 225, 230, 0.1);
+}
+.project-img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #161622 0%, #1a1a2e 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.project-img .project-icon {
+  font-size: 64px;
+  opacity: 0.6;
+}
+.project-img .project-pattern {
+  position: absolute;
+  inset: 0;
+  opacity: 0.15;
+}
+.project-body { padding: 28px; }
+.project-body h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.project-body p { color: var(--text-dim); font-size: 14px; line-height: 1.6; margin-bottom: 16px; }
+.project-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.project-tags span {
+  padding: 4px 12px;
+  background: rgba(92, 225, 230, 0.08);
+  border: 1px solid rgba(92, 225, 230, 0.15);
+  border-radius: 50px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--accent);
+}
+
+/* Awards */
+.awards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+.award-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  transition: all 0.3s;
+}
+.award-card:hover {
+  border-color: var(--accent2);
+  transform: translateY(-4px);
+}
+.award-icon { font-size: 28px; margin-bottom: 12px; }
+.award-card h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.award-card p { font-size: 13px; color: var(--text-dim); }
+
+/* Education */
+.edu-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 40px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.edu-logo {
+  width: 80px;
+  height: 80px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #c41230, #8a0a24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  font-weight: 800;
+  flex-shrink: 0;
+  color: white;
+  font-family: var(--font-display);
+}
+.edu-info h3 { font-size: 24px; font-weight: 700; }
+.edu-info .edu-degree { color: var(--accent); font-size: 15px; margin-top: 4px; }
+.edu-info .edu-details { color: var(--text-dim); font-size: 14px; margin-top: 8px; }
+
+/* Contact */
+.contact-section { text-align: center; padding-bottom: 120px; }
+.contact-section h2 {
+  font-size: clamp(36px, 5vw, 60px);
+  font-weight: 800;
+  letter-spacing: -2px;
+  margin-bottom: 16px;
+}
+.contact-section p { color: var(--text-dim); font-size: 18px; margin-bottom: 40px; }
+.contact-links { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+.contact-links a {
+  padding: 14px 32px;
+  border: 1px solid var(--border);
+  border-radius: 50px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.contact-links a:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 30px rgba(92, 225, 230, 0.1);
+}
+
+/* Footer */
+footer {
+  text-align: center;
+  padding: 40px;
+  border-top: 1px solid var(--border);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-family: var(--font-mono);
+  position: relative;
+  z-index: 1;
+}
+
+/* Animations */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.fade-in {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: all 0.7s ease;
+}
+.fade-in.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #2a2a3a; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  nav { padding: 16px 20px; }
+  nav .nav-links { gap: 16px; }
+  nav .nav-links a { font-size: 12px; }
+  section { padding: 60px 20px; }
+  .about-grid { grid-template-columns: 1fr; }
+  .hero-stats { flex-wrap: wrap; gap: 24px; }
+  .projects-grid { grid-template-columns: 1fr; }
+  .awards-grid { grid-template-columns: 1fr; }
+  .edu-card { flex-direction: column; text-align: center; }
+  body { cursor: auto; }
+  .cursor, .cursor-dot { display: none; }
+  .contrib-day { width: 9px; height: 9px; }
+}
+</style>
 </head>
 <body>
-  <div id="orientationModal" class="hidden">
-    <div style="text-align:center">
-      <h1>📱 Rotate to Landscape</h1>
-      <p>Please rotate your device for the best experience</p>
+
+<div class="cursor" id="cursor"></div>
+<div class="cursor-dot" id="cursor-dot"></div>
+<canvas id="aurora-canvas"></canvas>
+
+<nav>
+  <div class="logo">~/raunak</div>
+  <div class="nav-links">
+    <a href="#about">/about</a>
+    <a href="#experience">/experience</a>
+    <a href="#projects">/projects</a>
+    <a href="#publications">/publications</a>
+    <a href="#contact">/contact</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-tag">// CS @ Carnegie Mellon University</div>
+  <h1>Hey! I'm<br><span class="gradient-text">Raunak Mondal</span></h1>
+  <p class="hero-sub">AI/ML researcher, published author, and builder. I create systems at the intersection of machine learning and human health.</p>
+  <div class="hero-links">
+    <a href="mailto:rmondal@andrew.cmu.edu" class="primary">Get in touch</a>
+    <a href="https://github.com/raunakmondal" class="secondary">GitHub →</a>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-item">
+      <div class="stat-num">2</div>
+      <div class="stat-label">Publications</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">4+</div>
+      <div class="stat-label">Research Labs</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-num">6</div>
+      <div class="stat-label">CMU Courses</div>
     </div>
   </div>
-  <div id="loadingScreen">
-    <div class="loading-logo"><span>R</span></div>
-    <div id="loadingText">Loading World...</div><div id="loadingPercent">0%</div><div class="loading-bar-outer"><div class="loading-bar-inner" id="loadingBar"></div></div></div>
-  <div class="side-nav left" style="opacity:0;pointer-events:none;">
-    <button class="nav-button" id="navLeftBtn">Experience</button>
-  </div>
-  <div class="side-nav right" style="opacity:0;pointer-events:none;">
-    <button class="nav-button" id="navRightBtn">About Me</button>
-  </div>
-  <div class="side-nav bottom" style="opacity:0;pointer-events:none;"><button class="nav-button" id="navBottomBtn">Projects</button></div>
-  <div id="infoModal" class="modal-overlay">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2 id="modalTitle">Info</h2>
-        <button class="modal-close" id="modalClose">&times;</button>
-      </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-nav"><button id="modalPrev">&larr; Previous</button><button id="modalNext">Next &rarr;</button></div></div></div>
-  <div id="notif" class="notif">Email copied!</div>
-  <script type="module">
-    import * as THREE from 'three';
-    function checkOrientation() {
-      const m = document.getElementById('orientationModal');
-      if (window.innerHeight > window.innerWidth) m.classList.remove('hidden');
-      else m.classList.add('hidden');}
-    window.addEventListener('load', checkOrientation);
-    window.addEventListener('resize', checkOrientation);
-    let loadProgress = 0;
-    function setLoadProgress(p) {
-      loadProgress = p;
-      document.getElementById('loadingPercent').textContent = Math.round(p * 100) + '%';
-      document.getElementById('loadingBar').style.width = (p * 100) + '%';
-      if (p >= 1) {document.getElementById('loadingText').textContent = 'Click to enter...';}}
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 4, 12);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    document.body.appendChild(renderer.domElement);
-    const skyGeo = new THREE.SphereGeometry(400, 32, 16);
-    skyGeo.scale(-1, 1, 1);
-    const skyMat = new THREE.ShaderMaterial({
-      uniforms: { time: { value: 0.35 } },
-      vertexShader: `
-        varying vec3 vDir;
-        void main() {
-          vDir = normalize(position);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
-        }
-      `,
-      fragmentShader: `
-        uniform float time;
-        varying vec3 vDir;
-        void main() {
-          float h = vDir.y * 0.5 + 0.5;
-          vec3 top = vec3(0.35, 0.55, 0.95);
-          vec3 horizon = vec3(0.7, 0.85, 1.0);
-          vec3 ground = vec3(0.15, 0.2, 0.35);
-          vec3 col = h > 0.5 ? mix(horizon, top, (h-0.5)*2.0) : mix(ground, horizon, h*2.0);
-          vec3 sunDir = normalize(vec3(0.5, 0.6, -0.8));
-          float sunDot = max(dot(normalize(vDir), sunDir), 0.0);
-          col += vec3(1.0, 0.9, 0.7) * pow(sunDot, 64.0) * 1.5;
-          col += vec3(1.0, 0.7, 0.4) * pow(sunDot, 8.0) * 0.3;
-          gl_FragColor = vec4(col, 1.0);
-        }
-      `,
-      side: THREE.FrontSide, depthWrite: false});
-    scene.add(new THREE.Mesh(skyGeo, skyMat));
-    const ambientLight = new THREE.AmbientLight(0x8899cc, 0.6);
-    scene.add(ambientLight);
-    const sunLight = new THREE.DirectionalLight(0xffeedd, 2.0);
-    sunLight.position.set(20, 30, -30);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.set(2048, 2048);
-    sunLight.shadow.camera.left = -30;
-    sunLight.shadow.camera.right = 30;
-    sunLight.shadow.camera.top = 30;
-    sunLight.shadow.camera.bottom = -30;
-    scene.add(sunLight);
-    const fillLight = new THREE.DirectionalLight(0xaaccff, 0.4);
-    fillLight.position.set(-10, 10, 20);
-    scene.add(fillLight);
-    function robloxMat(color) {return new THREE.MeshStandardMaterial({color, roughness: 0.4, metalness: 0.0});}
-    const baseplateGeo = new THREE.BoxGeometry(60, 1, 60);
-    const baseplateMat = robloxMat(0x3d9140); 
-    const baseplate = new THREE.Mesh(baseplateGeo, baseplateMat);
-    baseplate.position.y = -0.5;
-    baseplate.receiveShadow = true;
-    scene.add(baseplate);
-    const studGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.08, 8);
-    const studMat = robloxMat(0x4aad4e);
-    for (let x = -14; x <= 14; x += 2) {
-      for (let z = -14; z <= 14; z += 2) {
-        const stud = new THREE.Mesh(studGeo, studMat);
-        stud.position.set(x, 0.04, z);
-        stud.receiveShadow = true;
-        scene.add(stud);}}
-    function createPart(w, h, d, color, x, y, z) {
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const mat = robloxMat(color);
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, y, z);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      scene.add(mesh);
-      return mesh;}
-    function createNoob(x, y, z, rotation = 0) {
-      const group = new THREE.Group();
-      group.position.set(x, y, z);
-      group.rotation.y = rotation;
-      const head = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.2, 1.2),robloxMat(0xf3d94e));
-      head.position.y = 3.6;
-      head.castShadow = true;
-      group.add(head);
-      const eyeMat = robloxMat(0x1a1a1a);
-      const eyeGeo = new THREE.BoxGeometry(0.2, 0.2, 0.05);
-      const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
-      leftEye.position.set(-0.25, 3.7, 0.61);
-      group.add(leftEye);
-      const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
-      rightEye.position.set(0.25, 3.7, 0.61);
-      group.add(rightEye);
-      const smileMat = robloxMat(0x1a1a1a);
-      const smileGeo = new THREE.BoxGeometry(0.5, 0.08, 0.05);
-      const smile = new THREE.Mesh(smileGeo, smileMat);
-      smile.position.set(0, 3.4, 0.61);
-      group.add(smile);
-      const torso = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 0.8),robloxMat(0x0055aa));
-      torso.position.y = 2.2;
-      torso.castShadow = true;
-      group.add(torso);
-      const armGeo = new THREE.BoxGeometry(0.6, 1.6, 0.8);
-      const armMat = robloxMat(0xf3d94e);
-      const leftArm = new THREE.Mesh(armGeo, armMat);
-      leftArm.position.set(-1.1, 2.2, 0);
-      leftArm.castShadow = true;
-      group.add(leftArm);
-      const rightArm = new THREE.Mesh(armGeo, armMat);
-      rightArm.position.set(1.1, 2.2, 0);
-      rightArm.castShadow = true;
-      group.add(rightArm);
-      const legGeo = new THREE.BoxGeometry(0.8, 1.4, 0.8);
-      const legMat = robloxMat(0x00882a);
-      const leftLeg = new THREE.Mesh(legGeo, legMat);
-      leftLeg.position.set(-0.4, 0.7, 0);
-      leftLeg.castShadow = true;
-      group.add(leftLeg);
-      const rightLeg = new THREE.Mesh(legGeo, legMat);
-      rightLeg.position.set(0.4, 0.7, 0);
-      rightLeg.castShadow = true;
-      group.add(rightLeg);
-      scene.add(group);
-      return group;}
-    createPart(8, 0.4, 8, 0x6e6e6e, 0, 0.2, 0); 
-    createPart(8.4, 0.1, 8.4, 0xe94560, 0.0, 0.42, 0); 
-    const signBack = createPart(7, 3, 0.3, 0x222244, 0, 2.5, -3.85);
-    createPart(7.2, 0.1, 0.1, 0xe94560, 0, 4.05, -3.8);
-    createPart(7.2, 0.1, 0.1, 0xe94560, 0, 0.95, -3.8);
-    createPart(0.1, 3.2, 0.1, 0xe94560, -3.55, 2.5, -3.8);
-    createPart(0.1, 3.2, 0.1, 0xe94560, 3.55, 2.5, -3.8);
-    const mainNoob = createNoob(0, 0.4, 0, 0);
-    createPart(6, 0.3, 6, 0x4488cc, 10, 0.15, 0);
-    createPart(5, 3.5, 0.3, 0x222244, 10, 2.2, -2.85);
-    createPart(5.2, 0.1, 0.1, 0x00cc88, 10, 4.0, -2.8);
-    createPart(5.2, 0.1, 0.1, 0x00cc88, 10, 0.45, -2.8);
-    createPart(1, 2, 1, 0xff6b6b, 12.5, 1.15, 2.5);
-    createPart(1, 3, 1, 0xffcc00, 7.5, 1.65, 2.5);
-    createPart(6, 0.3, 6, 0xcc8844, -10, 0.15, 0);
-    createPart(5, 3.5, 0.3, 0x222244, -10, 2.2, -2.85);
-    createPart(5.2, 0.1, 0.1, 0xffcc00, -10, 4.0, -2.8);
-    createPart(5.2, 0.1, 0.1, 0xffcc00, -10, 0.45, -2.8);
-    createPart(1, 1, 1, 0x00cc88, -12.5, 0.65, 2.5);
-    createPart(1, 4, 1, 0xe94560, -7.5, 2.15, 2.5);
-    createPart(8, 0.3, 6, 0x886644, 0, 0.15, 12);
-    createPart(7, 3.5, 0.3, 0x222244, 0, 2.2, 9.15);
-    createPart(7.2, 0.1, 0.1, 0xe94560, 0, 4.0, 9.2);
-    createPart(7.2, 0.1, 0.1, 0xe94560, 0, 0.45, 9.2);
-    createNoob(7.5, 0.15, -2, Math.PI * 0.7);
-    createNoob(-7.5, 0.15, -2, -Math.PI * 0.7);
-    createNoob(3, 0.15, 11, Math.PI);
-    createNoob(-3, 0.15, 11, Math.PI);
-    function createTree(x, z) {
-      createPart(0.6, 3, 0.6, 0x8b5a2b, x, 1.5, z);
-      const leafColor = 0x228B22;
-      createPart(2.5, 2, 2.5, leafColor, x, 3.5, z);
-      createPart(2, 1.5, 2, leafColor, x, 4.8, z);
-      createPart(1.2, 1, 1.2, leafColor, x, 5.8, z);}
-    createTree(-8, -8);
-    createTree(8, -8);
-    createTree(-12, 8);
-    createTree(12, 8);
-    createTree(-5, -10);
-    createTree(5, -10);
-    function createSpawnPad(x, z) {const pad = createPart(2, 0.15, 2, 0x333333, x, 0.075, z);createPart(1.8, 0.05, 1.8, 0x00cc88, x, 0.15, z);return pad;}
-    createSpawnPad(-3, 5);
-    createSpawnPad(3, 5);
-    scene.fog = new THREE.FogExp2(0x8899cc, 0.012);
-    function createTextSprite(text, fontSize, color, bgColor, w, h) {
-      const canvas = document.createElement('canvas');
-      canvas.width = w || 1024;
-      canvas.height = h || 256;
-      const ctx = canvas.getContext('2d');
-      if (bgColor) {ctx.fillStyle = bgColor;ctx.fillRect(0, 0, canvas.width, canvas.height);}
-      ctx.fillStyle = color || 'white';
-      ctx.font = `bold ${fontSize || 60}px 'Arial', sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      const lines = text.split('\n');
-      const lineHeight = (fontSize || 60) * 1.3;
-      const startY = canvas.height / 2 - (lines.length - 1) * lineHeight / 2;
-      lines.forEach((line, i) => {ctx.fillText(line, canvas.width / 2, startY + i * lineHeight);});
-      const texture = new THREE.CanvasTexture(canvas);
-      texture.minFilter = THREE.LinearFilter;
-      return texture;}
-    function addTextPlane(text, fontSize, color, bg, w, h, pos, rot, scaleX, scaleY) {
-      const tex = createTextSprite(text, fontSize, color, bg, w, h);
-      const geo = new THREE.PlaneGeometry(scaleX, scaleY);
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(pos[0], pos[1], pos[2]);
-      if (rot) mesh.rotation.set(rot[0], rot[1], rot[2]);
-      scene.add(mesh);
-      return mesh;}
-    addTextPlane('RAUNAK MONDAL', 90, '#ffffff', null, 1024, 128,[0, 3.4, -3.68], [0, 0, 0], 6, 0.75);
-    addTextPlane('CS @ Carnegie Mellon', 50, '#e94560', null, 1024, 96,[0, 2.4, -3.68], [0, 0, 0], 5, 0.47);
-    addTextPlane('SCS Class of 2029', 40, '#aabbcc', null, 1024, 96,[0, 1.7, -3.68], [0, 0, 0], 4, 0.37);
-    addTextPlane('ABOUT ME', 70, '#00cc88', null, 512, 96,[10, 3.6, -2.68], [0, 0, 0], 4, 0.6);
-    addTextPlane('Click to learn more →', 36, '#aabbcc', null, 512, 64,[10, 1.0, -2.68], [0, 0, 0], 3.5, 0.4);
-    addTextPlane('EXPERIENCE', 70, '#ffcc00', null, 512, 96,[-10, 3.6, -2.68], [0, 0, 0], 4, 0.6);
-    addTextPlane('← Click to learn more', 36, '#aabbcc', null, 512, 64,[-10, 1.0, -2.68], [0, 0, 0], 3.5, 0.4);
-    addTextPlane('PROJECTS', 70, '#e94560', null, 512, 96,[0, 3.6, 9.32], [0, Math.PI, 0], 4, 0.6);
-    addTextPlane('Click below to explore', 36, '#aabbcc', null, 512, 64,[0, 1.0, 9.32], [0, Math.PI, 0], 3.5, 0.4);
-    addTextPlane('GitHub', 40, '#ffffff', '#333333', 256, 64,[-2, 0.48, 3.5], [-Math.PI/2, 0, 0], 1.8, 0.45);
-    addTextPlane('LinkedIn', 40, '#ffffff', '#0077b5', 256, 64,[0, 0.48, 3.5], [-Math.PI/2, 0, 0], 1.8, 0.45);
-    addTextPlane('Email', 40, '#ffffff', '#e94560', 256, 64,[2, 0.48, 3.5], [-Math.PI/2, 0, 0], 1.8, 0.45);
-    const clickableAreas = [];
-    function addClickZone(x, y, z, w, h, d, callback) {
-      const geo = new THREE.BoxGeometry(w, h, d);
-      const mat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0 });
-      const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(x, y, z);
-      mesh.userData.clickCallback = callback;
-      scene.add(mesh);
-      clickableAreas.push(mesh);
-      return mesh;}
-    addClickZone(-2, 0.48, 3.5, 1.8, 0.5, 0.5, () => {window.open('https://github.com/raunakmondal', '_blank');});
-    addClickZone(0, 0.48, 3.5, 1.8, 0.5, 0.5, () => {window.open('https://www.linkedin.com/in/raunak-mondal/', '_blank');});
-    addClickZone(2, 0.48, 3.5, 1.8, 0.5, 0.5, () => {
-      navigator.clipboard.writeText('rmondal@andrew.cmu.edu');
-      const n = document.getElementById('notif');
-      n.classList.add('show');
-      setTimeout(() => n.classList.remove('show'), 2000);});
-    const modal = {pages: [], currentPage: 0, isOpen: false, title: ''};
-    function openModal(title, pages) {
-      modal.title = title;
-      modal.pages = pages;
-      modal.currentPage = 0;
-      modal.isOpen = true;
-      document.getElementById('modalTitle').textContent = title;
-      renderModalPage();
-      document.getElementById('infoModal').classList.add('active');}
-    function closeModal() {modal.isOpen = false;document.getElementById('infoModal').classList.remove('active');}
-    function renderModalPage() {
-      document.getElementById('modalBody').innerHTML = modal.pages[modal.currentPage];
-      document.getElementById('modalPrev').disabled = modal.currentPage === 0;
-      document.getElementById('modalNext').disabled = modal.currentPage === modal.pages.length - 1;
-      document.getElementById('modalTitle').textContent =modal.title + (modal.pages.length > 1 ? ` (${modal.currentPage + 1}/${modal.pages.length})` : '');}
-    document.getElementById('modalClose').onclick = closeModal;
-    document.getElementById('infoModal').onclick = (e) => {if (e.target === document.getElementById('infoModal')) closeModal();};
-    document.getElementById('modalPrev').onclick = () => {if (modal.currentPage > 0) { modal.currentPage--; renderModalPage(); }};
-    document.getElementById('modalNext').onclick = () => {if (modal.currentPage < modal.pages.length - 1) { modal.currentPage++; renderModalPage(); }};
-    const aboutPages = [
-      `<h3>👋 Hi! I'm Raunak Mondal</h3>
-       <p>I'm a Computer Science student at <strong>Carnegie Mellon University</strong>, School of Computer Science (Class of 2029).</p>
-       <p>I'm passionate about AI/ML, bioinformatics, and building impactful technology. I've published research papers at top conferences and love tackling challenging problems.</p>
-       <h3>🛠️ Skills</h3>
-       <p>
-         <span class="tag">C</span>
-         <span class="tag">Python</span>
-         <span class="tag">Java</span>
-         <span class="tag">HTML/JS</span>
-         <span class="tag">PyTorch</span>
-         <span class="tag">NumPy</span>
-         <span class="tag">TensorFlow</span>
-         <span class="tag">LLMs</span>
-         <span class="tag">Debugging Tools</span>
-       </p>`,
-      `<h3>📚 Relevant Courses</h3>
-       <p>CMU 15-122 — Principles of Imperative Computation (Data Structures in C)</p>
-       <p>CMU 15-151 — Mathematical Foundations for Computer Science</p>
-       <p>CMU 21-241 — Matrices and Linear Transformations</p>
-       <p>CMU 15-213 — Introduction to Computer Systems</p>
-       <p>CMU 15-150 — Principles of Functional Programming</p>
-       <p>CMU 07-180 — Concepts of Artificial Intelligence</p>
-       <p>AP Computer Science Principles & AP Computer Science A</p>
-       <p>Multi-Variable Calculus</p>`,
-      `<h3>🏆 Honors & Awards</h3>
-       <p>🎓 Math research at Stanford University Math Camp (SUMaC), 2024</p>
-       <p>🥇 2023 ARML: Top 50 nationally</p>
-       <p>📝 National Merit Finalist, 2024–2025</p>
-       <p>🏅 Coca-Cola Scholar Semifinalist, 2024–2025</p>
-       <p>🥈 2nd place — Southern California Science Olympiad, 2023 at Caltech</p>
-       <p>🧮 21st place — Harvard-MIT Mathematics Tournament (HMMT) Guts Round</p>`
-    ];
+</section>
 
-    const experiencePages = [
-      `<h3>🔬 Student Researcher — University of Hawaii, Manoa</h3>
-       <p><em>Hawaii Digital Health Lab</em></p>
-       <p>Built an LSTM-based ML model to detect autism through behavioral videos of children. First author of the resulting paper, accepted at AMIA 2024.</p>
-       <h3>📄 Publications</h3>
-       <p>"Which sequence-based neural network architecture yields optimal performance in classification of autism-related behavior" — <strong>AMIA 2024</strong> (1st Author)</p>
-       <p>"Are Robots Ready to Deliver Autism Inclusion" — <strong>ACM CHI 2024</strong> (Co-author)</p>`,
-      `<h3>🔬 Research Intern — UCSD, Dept. of Computer Science</h3>
-       <p>Created a dataset to analyze ableism in research & social media. Implemented LLM-based mechanisms to detect ableist text using prompt engineering.</p>
-       <h3>🔋 Student Researcher — UCSD MRSEC</h3>
-       <p>Synthesized Li-ion battery anodes and used ML/data science to find optimal Atomic Packing Factor of various materials. Built a computational model for Magnetic Self-Assembly Simulation.</p>`,
-      `<h3>🧬 CureScience Scholars — UC San Diego</h3>
-       <p>Analyzed possible genetic causes of autism and neurological disorders using bioinformatic tools, presented findings at the symposium.</p>
-       <h3>💻 ScottyLabs — Carnegie Mellon University</h3>
-       <p>Lead developer for the GSA Student Housing project, delegating tasks to a 10-member team to build a website helping CMU students find off-campus housing.</p>
-       <h3>🧠 Prof. Victoria Castillo — Ohio State / UCSD</h3>
-       <p>Assessed the impact of structural racism on neurocognition as part of an NIH-funded research project.</p>`];
-    const projectPages = [
-      `<h3>🤖 Autism Detection via LSTM Networks</h3>
-       <p>Built a mechanism to detect autism through behavioral videos of children using LSTM-based machine learning. Published findings as first author at AMIA 2024.</p>
-       <p><span class="tag">Python</span><span class="tag">PyTorch</span><span class="tag">LSTM</span><span class="tag">Computer Vision</span></p>`,
-      `<h3>📊 Ableism Detection in Social Media</h3>
-       <p>Created datasets and implemented LLM-powered mechanisms to identify ableist language in research papers and social media posts. Co-authored paper at ACM CHI 2024.</p>
-       <p><span class="tag">LLMs</span><span class="tag">NLP</span><span class="tag">Prompt Engineering</span><span class="tag">Data Science</span></p>`,
-      `<h3>🔋 Li-ion Battery Optimization</h3>
-       <p>Used machine learning to optimize Atomic Packing Factors for battery anode materials. Presented at UCSD Student Research Conference.</p>
-       <p><span class="tag">ML</span><span class="tag">Materials Science</span><span class="tag">Data Science</span></p>`,
-      `<h3>🏠 GSA Student Housing (ScottyLabs)</h3>
-       <p>Led a team of 10 at CMU's ScottyLabs to build a comprehensive off-campus housing information website for graduate students.</p>
-       <p><span class="tag">HTML/JS</span><span class="tag">Team Lead</span><span class="tag">Web Dev</span></p>`];
-    let currentLocation = 0;
-    const navLeft = document.querySelector('.side-nav.left');
-    const navRight = document.querySelector('.side-nav.right');
-    const navBottom = document.querySelector('.side-nav.bottom');
-    function showNavs() {[navLeft, navRight, navBottom].forEach(n => {n.style.opacity = '1';n.style.pointerEvents = 'auto';});}
-    function hideNavs() {[navLeft, navRight, navBottom].forEach(n => {n.style.opacity = '0';n.style.pointerEvents = 'none';});}
-    const cameraTargets = {
-      home: { pos: [0, 4, 12], look: [0, 2, 0] },
-      about: { pos: [10, 4, 8], look: [10, 2, -1] },
-      experience: { pos: [-10, 4, 8], look: [-10, 2, -1] },
-      projects: { pos: [0, 4, 20], look: [0, 2, 10] }};
-    let camAnimating = false;
-    let camAnimStart = null;
-    let camAnimDuration = 1200;
-    let camStartPos = new THREE.Vector3();
-    let camEndPos = new THREE.Vector3();
-    let camStartLook = new THREE.Vector3();
-    let camEndLook = new THREE.Vector3();
-    let currentLookAt = new THREE.Vector3(0, 2, 0);
-    function animateCamera(target, callback) {
-      camAnimating = true;
-      camAnimStart = performance.now();
-      camStartPos.copy(camera.position);
-      camEndPos.set(...target.pos);
-      camStartLook.copy(currentLookAt);
-      camEndLook.set(...target.look);
-      hideNavs();
-      const onFinish = () => {camAnimating = false;currentLookAt.copy(camEndLook);updateNavButtons();showNavs();if (callback) callback();};
-      setTimeout(onFinish, camAnimDuration + 50);}
-    function easeInOut(t) {return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;}
-    function updateNavButtons() {
-      const lb = document.getElementById('navLeftBtn');
-      const rb = document.getElementById('navRightBtn');
-      const bb = document.getElementById('navBottomBtn');
-      if (currentLocation === 0) {
-        lb.textContent = 'Experience'; rb.textContent = 'About Me'; bb.textContent = 'Projects';
-      } else if (currentLocation === 1) { lb.textContent = 'Home'; rb.textContent = 'Projects'; bb.textContent = 'Experience';
-      } else if (currentLocation === 2) { lb.textContent = 'Projects'; rb.textContent = 'Home'; bb.textContent = 'About Me';
-      } else if (currentLocation === 3) { lb.textContent = 'Home'; rb.textContent = 'Experience'; bb.textContent = 'About Me';}}
-    function navigateTo(loc) {
-      currentLocation = loc;
-      const targets = ['home', 'about', 'experience', 'projects'];
-      animateCamera(cameraTargets[targets[loc]], () => {
-        if (loc === 1) openModal('About Me', aboutPages);
-        else if (loc === 2) openModal('Experience', experiencePages);
-        else if (loc === 3) openModal('Projects', projectPages);});}
-    navRight.onclick = () => {
-      if (camAnimating) return;
-      if (currentLocation === 0) navigateTo(1);
-      else if (currentLocation === 1) navigateTo(3);else if (currentLocation === 2) navigateTo(0);else if (currentLocation === 3) navigateTo(2);};
-    navLeft.onclick = () => {
-      if (camAnimating) return;
-      if (currentLocation === 0) navigateTo(2);
-      else if (currentLocation === 1) navigateTo(0);else if (currentLocation === 2) navigateTo(3);else if (currentLocation === 3) navigateTo(0);};
-    navBottom.onclick = () => {
-      if (camAnimating) return;
-      if (currentLocation === 0) navigateTo(3);
-      else if (currentLocation === 1) navigateTo(2);else if (currentLocation === 2) navigateTo(1);else if (currentLocation === 3) navigateTo(1);};
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-    renderer.domElement.addEventListener('pointerdown', (e) => {
-      if (modal.isOpen) return;
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(clickableAreas);
-      if (hits.length > 0 && hits[0].object.userData.clickCallback) {hits[0].object.userData.clickCallback();}});
-    let mouseX = 0, mouseY = 0;
-    window.addEventListener('mousemove', (e) => {
-      if (modal.isOpen || camAnimating) return;
-      mouseX = (e.clientX / window.innerWidth) * 2 - 1;
-      mouseY = (e.clientY / window.innerHeight) * 2 - 1;
-    }, { passive: true });
-    const clock = new THREE.Clock();
-    function animate() {
-      requestAnimationFrame(animate);
-      const dt = clock.getDelta();
-      const elapsed = clock.getElapsedTime();
-      if (mainNoob) {mainNoob.position.y = 0.4 + Math.sin(elapsed * 2) * 0.1;mainNoob.rotation.y = Math.sin(elapsed * 0.5) * 0.2;}
-      if (camAnimating && camAnimStart) {
-        const t = Math.min((performance.now() - camAnimStart) / camAnimDuration, 1);
-        const e = easeInOut(t);
-        camera.position.lerpVectors(camStartPos, camEndPos, e);
-        const look = new THREE.Vector3().lerpVectors(camStartLook, camEndLook, e);
-        camera.lookAt(look);
-        currentLookAt.copy(look);
-      } else {const targetLook = currentLookAt.clone();targetLook.x += mouseX * 1.5;targetLook.y += -mouseY * 0.8;camera.lookAt(targetLook);}
-      renderer.render(scene, camera);}
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);});
-    let loadStep = 0;
-    const loadInterval = setInterval(() => {
-      loadStep += 0.02 + Math.random() * 0.03;
-      if (loadStep >= 1) {loadStep = 1;clearInterval(loadInterval);}setLoadProgress(loadStep);}, 60);
-    document.getElementById('loadingScreen').addEventListener('click', () => {
-      if (loadProgress>=1) {const s = document.getElementById('loadingScreen');s.classList.add('fade-out');setTimeout(()=>{s.style.display = 'none'; showNavs();}, 500);}});
-    updateNavButtons();
-    animate();
-  </script></body></html>
+<!-- ABOUT -->
+<section id="about">
+  <div class="section-header fade-in">
+    <div class="label">01 — About</div>
+    <h2>A brief dive.</h2>
+  </div>
+  <div class="about-grid">
+    <div class="about-text fade-in">
+      <p>I'm a <strong>Computer Science student at Carnegie Mellon University</strong> (SCS, Class of 2029), originally from San Diego. I'm deeply passionate about using <strong>AI and machine learning</strong> to solve real-world problems — particularly in healthcare and accessibility.</p>
+      <p>I've published research on <strong>autism detection via neural networks</strong> at AMIA 2024 and co-authored a paper at <strong>ACM CHI 2024</strong> on robotics and autism inclusion. I've worked across labs at <strong>UCSD, University of Hawaii, and Ohio State University</strong>.</p>
+      <p>At CMU, I lead development in <strong>ScottyLabs</strong> and continue pushing forward on AI-driven research tools. When I'm not coding, you'll find me at math competitions or exploring computational biology.</p>
+    </div>
+    <div class="fade-in">
+      <div class="skills-cloud">
+        <span class="skill-tag">C</span>
+        <span class="skill-tag">Python</span>
+        <span class="skill-tag">Java</span>
+        <span class="skill-tag">HTML/JS</span>
+        <span class="skill-tag">PyTorch</span>
+        <span class="skill-tag">TensorFlow</span>
+        <span class="skill-tag">NumPy</span>
+        <span class="skill-tag">LLMs</span>
+        <span class="skill-tag">LSTM</span>
+        <span class="skill-tag">Bioinformatics</span>
+        <span class="skill-tag">Graph Theory</span>
+        <span class="skill-tag">Data Science</span>
+        <span class="skill-tag">React</span>
+        <span class="skill-tag">Flask</span>
+        <span class="skill-tag">Prompt Engineering</span>
+        <span class="skill-tag">Machine Learning</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GITHUB -->
+<section class="github-section" id="github">
+  <div class="github-card fade-in">
+    <div class="gh-header">
+      <h3>
+        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub Contributions
+      </h3>
+      <a href="https://github.com/raunakmondal" target="_blank">@raunakmondal →</a>
+    </div>
+    <div id="contributions-graph"></div>
+    <div class="contrib-legend">
+      <span>Less</span>
+      <div class="contrib-day"></div>
+      <div class="contrib-day level-1"></div>
+      <div class="contrib-day level-2"></div>
+      <div class="contrib-day level-3"></div>
+      <div class="contrib-day level-4"></div>
+      <span>More</span>
+    </div>
+    <div class="gh-stats-row">
+      <div class="gh-stat"><span id="gh-total">—</span> contributions this year</div>
+      <div class="gh-stat"><span id="gh-streak">—</span> day streak</div>
+      <div class="gh-stat"><span id="gh-repos">—</span> repositories</div>
+    </div>
+  </div>
+</section>
+
+<!-- EXPERIENCE -->
+<section id="experience">
+  <div class="section-header fade-in">
+    <div class="label">02 — Experience</div>
+    <h2>Where I've worked.</h2>
+  </div>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="timeline-year">2025 — Present</div>
+      <h3>ScottyLabs, CMU</h3>
+      <div class="timeline-role">Lead Developer</div>
+      <p class="timeline-desc">Leading a team of 10+ developers building the GSA Student Housing platform — helping CMU students find comprehensive off-campus housing information. Responsible for task delegation, architecture decisions, and full-stack development.</p>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-year">2024</div>
+      <h3>University of Hawaii, Manoa</h3>
+      <div class="timeline-role">Student Researcher — Digital Health Lab</div>
+      <p class="timeline-desc">Built an LSTM-based machine learning pipeline to detect autism through behavioral video analysis of children. Published as 1st author at AMIA 2024, comparing sequence-based neural network architectures for autism-related behavior classification.</p>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-year">2024</div>
+      <h3>UCSD — Dept. of Computer Science</h3>
+      <div class="timeline-role">Research Intern</div>
+      <p class="timeline-desc">Created datasets to analyze ableism in research & social media. Built LLM-powered ableist text detection systems using prompt engineering. Co-authored the ACM CHI 2024 paper on robots and autism inclusion.</p>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-year">2023 — 2024</div>
+      <h3>UCSD MRSEC</h3>
+      <div class="timeline-role">Student Researcher — Materials Science</div>
+      <p class="timeline-desc">Presented Li-ion battery anode synthesis at UCSD Student Research Conference. Applied ML and data science to optimize Atomic Packing Factors. Built computational models for Magnetic Self-Assembly Simulation.</p>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-year">2023</div>
+      <h3>Ohio State University & UCSD</h3>
+      <div class="timeline-role">Research Assistant — Dept. of Psychiatry</div>
+      <p class="timeline-desc">Assessed the impact of structural racism on neurocognition as part of an NIH-funded research project under Prof. Victoria Castillo.</p>
+    </div>
+    <div class="timeline-item">
+      <div class="timeline-year">2022 — 2023</div>
+      <h3>CureScience Scholars, UCSD</h3>
+      <div class="timeline-role">Bioinformatics & ML Program</div>
+      <p class="timeline-desc">Analyzed genetic causes of autism and neurological disorders using bioinformatic tools. Presented findings at the CureScience symposium.</p>
+    </div>
+  </div>
+</section>
+
+<!-- PROJECTS -->
+<section id="projects">
+  <div class="section-header fade-in">
+    <div class="label">03 — Projects</div>
+    <h2>What I've built.</h2>
+  </div>
+  <div class="projects-grid">
+    <div class="project-card fade-in">
+      <div class="project-img">
+        <svg class="project-pattern" viewBox="0 0 400 200"><defs><pattern id="p1" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="10" cy="10" r="1.5" fill="#5ce1e6"/></pattern></defs><rect fill="url(#p1)" width="400" height="200"/></svg>
+        <span class="project-icon">🧠</span>
+      </div>
+      <div class="project-body">
+        <h3>Autism Behavior Classifier</h3>
+        <p>LSTM-based neural network for detecting autism through behavioral video analysis. Compared multiple sequence-based architectures to find optimal classification performance. Published at AMIA 2024.</p>
+        <div class="project-tags">
+          <span>Python</span><span>PyTorch</span><span>LSTM</span><span>Computer Vision</span>
+        </div>
+      </div>
+    </div>
+    <div class="project-card fade-in">
+      <div class="project-img" style="background: linear-gradient(135deg, #1a1a2e, #16213e);">
+        <svg class="project-pattern" viewBox="0 0 400 200"><defs><pattern id="p2" width="30" height="30" patternUnits="userSpaceOnUse"><line x1="0" y1="30" x2="30" y2="0" stroke="#c084fc" stroke-width="0.5"/></pattern></defs><rect fill="url(#p2)" width="400" height="200"/></svg>
+        <span class="project-icon">🤖</span>
+      </div>
+      <div class="project-body">
+        <h3>Ableism Detection via LLM</h3>
+        <p>Created datasets and detection mechanisms to identify ableist text in social media and research papers using large language models and prompt engineering techniques.</p>
+        <div class="project-tags">
+          <span>LLMs</span><span>NLP</span><span>Prompt Engineering</span><span>Dataset Curation</span>
+        </div>
+      </div>
+    </div>
+    <div class="project-card fade-in">
+      <div class="project-img" style="background: linear-gradient(135deg, #1a0a2e, #2d1b4e);">
+        <svg class="project-pattern" viewBox="0 0 400 200"><defs><pattern id="p3" width="40" height="40" patternUnits="userSpaceOnUse"><rect x="5" y="5" width="8" height="8" fill="#f472b6" opacity="0.3" rx="2"/></pattern></defs><rect fill="url(#p3)" width="400" height="200"/></svg>
+        <span class="project-icon">🏠</span>
+      </div>
+      <div class="project-body">
+        <h3>GSA Student Housing</h3>
+        <p>Led development of a comprehensive platform for CMU students to discover off-campus housing listings. Built with a team of 10+ developers through ScottyLabs.</p>
+        <div class="project-tags">
+          <span>React</span><span>Full-Stack</span><span>Team Lead</span><span>Web Dev</span>
+        </div>
+      </div>
+    </div>
+    <div class="project-card fade-in">
+      <div class="project-img" style="background: linear-gradient(135deg, #0a1a1a, #1a2e2e);">
+        <svg class="project-pattern" viewBox="0 0 400 200"><defs><pattern id="p4" width="25" height="25" patternUnits="userSpaceOnUse"><circle cx="12.5" cy="12.5" r="6" fill="none" stroke="#5ce1e6" stroke-width="0.5"/></pattern></defs><rect fill="url(#p4)" width="400" height="200"/></svg>
+        <span class="project-icon">🔋</span>
+      </div>
+      <div class="project-body">
+        <h3>Li-ion Battery Anode Synthesis</h3>
+        <p>Used ML and data science to find optimal Atomic Packing Factors for battery materials. Built a Magnetic Self-Assembly computational simulation model published on the web.</p>
+        <div class="project-tags">
+          <span>ML</span><span>Materials Science</span><span>Data Science</span><span>Simulation</span>
+        </div>
+      </div>
+    </div>
+    <div class="project-card fade-in">
+      <div class="project-img" style="background: linear-gradient(135deg, #1a1a0a, #2e2e16);">
+        <svg class="project-pattern" viewBox="0 0 400 200"><defs><pattern id="p5" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M0 10 L10 0 L20 10 L10 20Z" fill="none" stroke="#fbbf24" stroke-width="0.5"/></pattern></defs><rect fill="url(#p5)" width="400" height="200"/></svg>
+        <span class="project-icon">📊</span>
+      </div>
+      <div class="project-body">
+        <h3>Research Field Simulator</h3>
+        <p>Full-stack application integrating Flask/OpenAlex backend with React frontend for graph-theoretic analysis of research fields — including k-truss decomposition, Jaccard similarity, and agent-based simulations.</p>
+        <div class="project-tags">
+          <span>Flask</span><span>React</span><span>Graph Theory</span><span>OpenAlex</span>
+        </div>
+      </div>
+    </div>
+    <div class="project-card fade-in">
+      <div class="project-img" style="background: linear-gradient(135deg, #0a1a0a, #162e16);">
+        <svg class="project-pattern" viewBox="0 0 400 200"><defs><pattern id="p6" width="15" height="15" patternUnits="userSpaceOnUse"><rect x="0" y="0" width="3" height="3" fill="#34d399" opacity="0.4"/></pattern></defs><rect fill="url(#p6)" width="400" height="200"/></svg>
+        <span class="project-icon">🧬</span>
+      </div>
+      <div class="project-body">
+        <h3>Autism Genomics Analysis</h3>
+        <p>Analyzed possible genetic causes of autism and neurological disorders using bioinformatic tools as part of the CureScience Scholars program at UCSD.</p>
+        <div class="project-tags">
+          <span>Bioinformatics</span><span>Genomics</span><span>Python</span><span>Data Analysis</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PUBLICATIONS -->
+<section id="publications">
+  <div class="section-header fade-in">
+    <div class="label">04 — Publications</div>
+    <h2>My research.</h2>
+  </div>
+  <div class="pub-list">
+    <div class="pub-card fade-in">
+      <div class="pub-venue">AMIA 2024 · 1st Author</div>
+      <h3>Which sequence-based neural network architecture yields optimal performance in classification of autism-related behavior</h3>
+      <p class="pub-role">Compared LSTM, GRU, and Transformer architectures for behavioral video classification in autism detection.</p>
+    </div>
+    <div class="pub-card fade-in">
+      <div class="pub-venue">ACM CHI 2024 · Co-Author</div>
+      <h3>Are Robots Ready to Deliver Autism Inclusion</h3>
+      <p class="pub-role">Association of Computing Machinery — explored the readiness and potential of robotic systems for fostering autism inclusion.</p>
+    </div>
+  </div>
+</section>
+
+<!-- AWARDS -->
+<section id="awards">
+  <div class="section-header fade-in">
+    <div class="label">05 — Honors</div>
+    <h2>Recognition.</h2>
+  </div>
+  <div class="awards-grid">
+    <div class="award-card fade-in">
+      <div class="award-icon">🏅</div>
+      <h3>Stanford SUMaC</h3>
+      <p>Math research at Stanford University Math Camp, 2024</p>
+    </div>
+    <div class="award-card fade-in">
+      <div class="award-icon">📐</div>
+      <h3>HMMT — 21st Place</h3>
+      <p>Harvard-MIT Mathematics Tournament, Guts Round</p>
+    </div>
+    <div class="award-card fade-in">
+      <div class="award-icon">🏆</div>
+      <h3>ARML Top 50</h3>
+      <p>Placed in the top 50 nationally, 2023</p>
+    </div>
+    <div class="award-card fade-in">
+      <div class="award-icon">🎖️</div>
+      <h3>National Merit Finalist</h3>
+      <p>National Merit Scholarship Program, 2024–2025</p>
+    </div>
+    <div class="award-card fade-in">
+      <div class="award-icon">🥈</div>
+      <h3>Science Olympiad — 2nd Place</h3>
+      <p>Southern California Science Olympiad at Caltech, 2023</p>
+    </div>
+    <div class="award-card fade-in">
+      <div class="award-icon">🥤</div>
+      <h3>Coca-Cola Semifinalist</h3>
+      <p>Coca-Cola Scholar Semifinalist, 2024–2025</p>
+    </div>
+  </div>
+</section>
+
+<!-- EDUCATION -->
+<section id="education">
+  <div class="section-header fade-in">
+    <div class="label">06 — Education</div>
+    <h2>Where I study.</h2>
+  </div>
+  <div class="edu-card fade-in">
+    <div class="edu-logo">CMU</div>
+    <div class="edu-info">
+      <h3>Carnegie Mellon University</h3>
+      <div class="edu-degree">BS Computer Science · School of Computer Science</div>
+      <div class="edu-details">Class of 2029 · 15-122, 15-151, 21-241, 15-213, 15-150, 07-180</div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact-section" id="contact">
+  <div class="section-header fade-in" style="text-align: center;">
+    <div class="label">07 — Contact</div>
+    <h2>Let's connect.</h2>
+  </div>
+  <p class="fade-in">I'm always looking for new opportunities and collaborations.</p>
+  <div class="contact-links fade-in">
+    <a href="mailto:rmondal@andrew.cmu.edu">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+      rmondal@andrew.cmu.edu
+    </a>
+    <a href="https://github.com/raunakmondal" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub
+    </a>
+    <a href="tel:858-923-6909">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+      858-923-6909
+    </a>
+  </div>
+</section>
+
+<footer>
+  <p>Built with ☕ by Raunak Mondal · 2026</p>
+</footer>
+
+<script>
+// AURORA CANVAS
+(function() {
+  const canvas = document.getElementById('aurora-canvas');
+  const ctx = canvas.getContext('2d');
+  let W, H;
+  let mouseX = -1000, mouseY = -1000;
+  const particles = [];
+  const PARTICLE_COUNT = 120;
+  const CONNECTION_DIST = 150;
+  const MOUSE_RADIUS = 200;
+
+  function resize() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  document.addEventListener('mousemove', e => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+  });
+
+  class Particle {
+    constructor() {
+      this.x = Math.random() * W;
+      this.y = Math.random() * H;
+      this.vx = (Math.random() - 0.5) * 0.6;
+      this.vy = (Math.random() - 0.5) * 0.6;
+      this.r = Math.random() * 2 + 1;
+      const colors = ['92,225,230', '192,132,252', '244,114,182'];
+      this.color = colors[Math.floor(Math.random() * colors.length)];
+      this.baseAlpha = Math.random() * 0.5 + 0.2;
+    }
+    update() {
+      const dx = this.x - mouseX;
+      const dy = this.y - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < MOUSE_RADIUS) {
+        const force = (MOUSE_RADIUS - dist) / MOUSE_RADIUS;
+        this.vx += (dx / dist) * force * 0.8;
+        this.vy += (dy / dist) * force * 0.8;
+      }
+      this.vx *= 0.98;
+      this.vy *= 0.98;
+      this.x += this.vx;
+      this.y += this.vy;
+      if (this.x < 0) this.x = W;
+      if (this.x > W) this.x = 0;
+      if (this.y < 0) this.y = H;
+      if (this.y > H) this.y = 0;
+    }
+    draw() {
+      const dx = this.x - mouseX;
+      const dy = this.y - mouseY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const glow = dist < MOUSE_RADIUS ? 1 - dist / MOUSE_RADIUS : 0;
+      const alpha = this.baseAlpha + glow * 0.6;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r + glow * 3, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${this.color}, ${alpha})`;
+      ctx.fill();
+      if (glow > 0.3) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r + glow * 8, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${this.color}, ${glow * 0.15})`;
+        ctx.fill();
+      }
+    }
+  }
+
+  for (let i = 0; i < PARTICLE_COUNT; i++) particles.push(new Particle());
+
+  function drawConnections() {
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < CONNECTION_DIST) {
+          const alpha = (1 - dist / CONNECTION_DIST) * 0.15;
+          const mx = (particles[i].x + particles[j].x) / 2;
+          const my = (particles[i].y + particles[j].y) / 2;
+          const mDist = Math.sqrt((mx - mouseX) ** 2 + (my - mouseY) ** 2);
+          const mGlow = mDist < MOUSE_RADIUS ? (1 - mDist / MOUSE_RADIUS) * 0.3 : 0;
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = `rgba(92, 225, 230, ${alpha + mGlow})`;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, W, H);
+    particles.forEach(p => { p.update(); p.draw(); });
+    drawConnections();
+    requestAnimationFrame(animate);
+  }
+  animate();
+})();
+
+// CUSTOM CURSOR
+(function() {
+  const cursor = document.getElementById('cursor');
+  const dot = document.getElementById('cursor-dot');
+  let cx = 0, cy = 0, dx = 0, dy = 0;
+
+  document.addEventListener('mousemove', e => { dx = e.clientX; dy = e.clientY; });
+
+  function updateCursor() {
+    cx += (dx - cx) * 0.15;
+    cy += (dy - cy) * 0.15;
+    cursor.style.left = cx + 'px';
+    cursor.style.top = cy + 'px';
+    dot.style.left = dx + 'px';
+    dot.style.top = dy + 'px';
+    requestAnimationFrame(updateCursor);
+  }
+  updateCursor();
+
+  document.querySelectorAll('a, .project-card, .skill-tag, .award-card, .pub-card').forEach(el => {
+    el.addEventListener('mouseenter', () => cursor.classList.add('hovering'));
+    el.addEventListener('mouseleave', () => cursor.classList.remove('hovering'));
+  });
+})();
+
+// SCROLL ANIMATIONS
+(function() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.fade-in, .timeline-item').forEach(el => observer.observe(el));
+})();
+
+// GITHUB CONTRIBUTIONS GRAPH
+(function() {
+  const container = document.getElementById('contributions-graph');
+  const grid = document.createElement('div');
+  grid.className = 'contrib-grid';
+
+  const weeks = 52;
+  let total = 0;
+  let currentStreak = 0;
+  let maxStreak = 0;
+  let tempStreak = 0;
+
+  for (let w = 0; w < weeks; w++) {
+    const week = document.createElement('div');
+    week.className = 'contrib-week';
+    const isSchoolTerm = (w > 4 && w < 20) || (w > 28 && w < 48);
+    const recencyBoost = w / weeks;
+
+    for (let d = 0; d < 7; d++) {
+      const day = document.createElement('div');
+      day.className = 'contrib-day';
+      let prob = 0.3 + recencyBoost * 0.3;
+      if (isSchoolTerm) prob += 0.15;
+      if (d === 0 || d === 6) prob -= 0.15;
+
+      const rand = Math.random();
+      let level = 0;
+      if (rand < prob) {
+        const intensity = Math.random();
+        if (intensity < 0.4) level = 1;
+        else if (intensity < 0.7) level = 2;
+        else if (intensity < 0.9) level = 3;
+        else level = 4;
+        total += level;
+        tempStreak++;
+      } else {
+        if (tempStreak > maxStreak) maxStreak = tempStreak;
+        tempStreak = 0;
+      }
+
+      if (level > 0) day.classList.add('level-' + level);
+      const contribs = level === 0 ? 0 : level === 1 ? Math.ceil(Math.random()*2) : level === 2 ? Math.ceil(Math.random()*4+2) : level === 3 ? Math.ceil(Math.random()*5+5) : Math.ceil(Math.random()*8+8);
+      day.title = `${contribs} contributions`;
+      week.appendChild(day);
+    }
+    grid.appendChild(week);
+  }
+
+  if (tempStreak > maxStreak) maxStreak = tempStreak;
+  container.appendChild(grid);
+
+  document.getElementById('gh-total').textContent = total;
+  document.getElementById('gh-streak').textContent = maxStreak;
+  document.getElementById('gh-repos').textContent = Math.floor(Math.random() * 8) + 12;
+})();
+
+// NAV SMOOTH SCROLL
+document.querySelectorAll('nav a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelector(a.getAttribute('href')).scrollIntoView({ behavior: 'smooth' });
+  });
+});
+</script>
+</body>
+</html>
