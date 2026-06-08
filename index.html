@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-  
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,6 +11,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Recursive:CASL,MONO@1,1&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
 :root {
   --bg: #111;
   --text: #e0e0e0;
@@ -24,7 +24,9 @@
   --font: 'Work Sans', system-ui, sans-serif;
   --mono: 'Recursive', monospace;
 }
+
 html { scroll-behavior: smooth; }
+
 body {
   background: var(--bg);
   color: var(--text);
@@ -36,6 +38,7 @@ body {
   padding: 0 24px;
   -webkit-font-smoothing: antialiased;
 }
+
 a {
   color: var(--link);
   text-decoration: underline;
@@ -56,6 +59,8 @@ mark {
   border-radius: 4px;
   font-weight: 500;
 }
+
+/* ── Particle canvas ── */
 #particle-canvas {
   position: fixed;
   top: 0; left: 0;
@@ -63,6 +68,8 @@ mark {
   z-index: -1;
   pointer-events: none;
 }
+
+/* ── Circle cursor follower ── */
 #circle {
   position: fixed;
   width: 280px;
@@ -74,6 +81,8 @@ mark {
   z-index: -1;
   transition: left 0.3s ease-out, top 0.3s ease-out;
 }
+
+/* ── Hero ── */
 .hero {
   padding-top: min(28vh, 200px);
   padding-bottom: 48px;
@@ -92,6 +101,8 @@ mark {
   color: var(--text);
   font-weight: 400;
 }
+
+/* ── Meta links ── */
 .meta-links {
   display: flex;
   gap: 6px;
@@ -108,11 +119,15 @@ mark {
 .meta-links a:hover {
   color: var(--link-hover);
 }
+
+/* ── Section divider ── */
 .section-break {
   border: none;
   border-top: 1px solid rgba(255,255,255,0.06);
   margin: 0 0 48px;
 }
+
+/* ── Section labels ── */
 .section-label {
   font-size: 12px;
   font-family: var(--mono);
@@ -121,6 +136,8 @@ mark {
   text-transform: uppercase;
   margin-bottom: 24px;
 }
+
+/* ── Experience list ── */
 .exp-item {
   margin-bottom: 20px;
 }
@@ -150,6 +167,8 @@ mark {
   color: var(--text-dim);
   margin-top: 1px;
 }
+
+/* ── Publications ── */
 .pub-item {
   margin-bottom: 16px;
 }
@@ -167,6 +186,8 @@ mark {
   color: var(--accent);
   margin-top: 2px;
 }
+
+/* ── GitHub ── */
 .gh-section {
   margin-bottom: 48px;
 }
@@ -234,6 +255,8 @@ mark {
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ── Honors ── */
 .honors-list {
   columns: 2;
   column-gap: 32px;
@@ -251,12 +274,16 @@ mark {
   color: var(--text);
   font-weight: 500;
 }
+
+/* ── Footer ── */
 footer {
   padding: 32px 0;
   font-family: var(--mono);
   font-size: 11px;
   color: #333;
 }
+
+/* ── Responsive ── */
 @media (max-width: 500px) {
   .hero { padding-top: 100px; }
   .hero h1 { font-size: 26px; }
@@ -281,7 +308,7 @@ footer {
 <div class="meta-links">
   <p><a href="mailto:rmondal@andrew.cmu.edu">Email</a> ·</p>
   <p><a href="https://github.com/raunak2007">GitHub</a> ·</p>
-  <p><a href="https://www.linkedin.com/in/raunakmondal1/">LinkedIn</a></p>
+  <p><a href="https://www.linkedin.com/in/raunakmondal/">LinkedIn</a></p>
 </div>
 
 <hr class="section-break">
@@ -347,6 +374,7 @@ footer {
 <footer>raunak mondal · pittsburgh · 2026</footer>
 
 <script>
+/* ── Particle canvas ── */
 (function(){
   const c = document.getElementById('particle-canvas');
   const ctx = c.getContext('2d');
@@ -385,9 +413,109 @@ footer {
 
   for (let i = 0; i < N; i++) ps.push(new P());
 
+  /* ── Explosion sparks ── */
+  const sparks = [];
+  const colors = ['74,222,128', '134,239,172', '255,255,255', '52,211,153', '16,185,129'];
+
+  class Spark {
+    constructor(x, y) {
+      this.x = x; this.y = y;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 6 + 2;
+      this.vx = Math.cos(angle) * speed;
+      this.vy = Math.sin(angle) * speed;
+      this.r = Math.random() * 2.5 + 1;
+      this.life = 1;
+      this.decay = Math.random() * .015 + .012;
+      this.color = colors[Math.floor(Math.random() * colors.length)];
+      this.gravity = 0.03;
+      this.trail = [];
+    }
+    update() {
+      this.trail.push({ x: this.x, y: this.y, life: this.life });
+      if (this.trail.length > 6) this.trail.shift();
+      this.vy += this.gravity;
+      this.vx *= .98;
+      this.vy *= .98;
+      this.x += this.vx;
+      this.y += this.vy;
+      this.life -= this.decay;
+    }
+    draw() {
+      // trail
+      for (let i = 0; i < this.trail.length; i++) {
+        const t = this.trail[i];
+        const ta = (i / this.trail.length) * this.life * .3;
+        const tr = this.r * (i / this.trail.length) * .6;
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, tr, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${this.color},${ta})`;
+        ctx.fill();
+      }
+      // main dot
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r * this.life, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${this.color},${this.life})`;
+      ctx.fill();
+      // glow
+      if (this.life > .4) {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.r * 3 * this.life, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${this.color},${this.life * .15})`;
+        ctx.fill();
+      }
+    }
+    get dead() { return this.life <= 0; }
+  }
+
+  /* ── Shockwave ring ── */
+  const rings = [];
+  class Ring {
+    constructor(x, y) {
+      this.x = x; this.y = y;
+      this.r = 0;
+      this.maxR = 120 + Math.random() * 40;
+      this.life = 1;
+    }
+    update() {
+      this.r += (this.maxR - this.r) * .08;
+      this.life -= .02;
+    }
+    draw() {
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(74,222,128,${this.life * .3})`;
+      ctx.lineWidth = 1.5 * this.life;
+      ctx.stroke();
+    }
+    get dead() { return this.life <= 0; }
+  }
+
+  document.addEventListener('dblclick', e => {
+    // spawn sparks
+    const count = 35 + Math.floor(Math.random() * 15);
+    for (let i = 0; i < count; i++) sparks.push(new Spark(e.clientX, e.clientY));
+    // shockwave ring
+    rings.push(new Ring(e.clientX, e.clientY));
+    // push nearby particles away
+    for (const p of ps) {
+      const dx = p.x - e.clientX, dy = p.y - e.clientY;
+      const d = Math.hypot(dx, dy);
+      if (d < 250 && d > 0) {
+        const force = (250 - d) / 250 * 4;
+        p.vx += (dx / d) * force;
+        p.vy += (dy / d) * force;
+      }
+    }
+  });
+
   function frame() {
     ctx.clearRect(0, 0, W, H);
+
+    // update & draw persistent particles
     for (const p of ps) { p.update(); p.draw(); }
+
+    // connections
     for (let i = 0; i < ps.length; i++) {
       for (let j = i + 1; j < ps.length; j++) {
         const dx = ps[i].x - ps[j].x, dy = ps[i].y - ps[j].y, d = Math.hypot(dx, dy);
@@ -405,10 +533,27 @@ footer {
         }
       }
     }
+
+    // update & draw sparks
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      sparks[i].update();
+      sparks[i].draw();
+      if (sparks[i].dead) sparks.splice(i, 1);
+    }
+
+    // update & draw rings
+    for (let i = rings.length - 1; i >= 0; i--) {
+      rings[i].update();
+      rings[i].draw();
+      if (rings[i].dead) rings.splice(i, 1);
+    }
+
     requestAnimationFrame(frame);
   }
   frame();
 })();
+
+/* ── Circle follower ── */
 (function(){
   const el = document.getElementById('circle');
   document.addEventListener('mousemove', e => {
@@ -416,6 +561,8 @@ footer {
     el.style.top = e.clientY + 'px';
   });
 })();
+
+/* ── GitHub (live API) ── */
 (async function(){
   const username = 'raunak2007';
   const g = document.getElementById('contrib-graph');
