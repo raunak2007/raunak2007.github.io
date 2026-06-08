@@ -1,32 +1,44 @@
-name: Deploy with Real GitHub Data
+name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [ main ]
-  schedule:
-    - cron: '0 0 * * *'  # Daily update
   workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *'  # Update stats daily
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
       
-      - name: Fetch GitHub Data
+      - name: Fetch GitHub Stats
         run: |
-          curl -X POST \
-            -H "Authorization: bearer ${{ secrets.token }}" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"query{user(login:\"raunak2007\"){contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{contributionCount date}}}}repositories(first:100,isFork:false){totalCount}}}"}' \
-            https://api.github.com/graphql > github-data.json
+          # Fetch real contribution data using your token (safe in CI)
+          curl -H "Authorization: bearer ${{ secrets.TOKEN }}" \
+               -H "Content-Type: application/json" \
+               -X POST \
+               -d '{"query":"query{user(login:\"raunak2007\"){contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{contributionCount date}}}}repositories(first:100,isFork:false){totalCount}}}"}' \
+               https://api.github.com/graphql > github-stats.json
           
-          # Escape JSON for injection
-          DATA=$(cat github-data.json | jq -c .)
-          sed -i "s/__GITHUB_DATA_PLACEHOLDER__/$DATA/" index.html
+          # Create a JavaScript file with the data
+          echo "// Auto-generated at $(date)" > github-data.js
+          echo "window.GITHUB_DATA = $(cat github-stats.json);" >> github-data.js
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
       
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.token }}
-          publish_dir: ./
+        uses: actions/deploy-pages@v4
