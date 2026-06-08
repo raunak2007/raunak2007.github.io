@@ -1,140 +1,32 @@
-name: Deploy Portfolio with Real GitHub Data
+name: Deploy with Real GitHub Data
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:  # Allows manual trigger
+  schedule:
+    - cron: '0 0 * * *'  # Daily update
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      
-      - name: Generate HTML with real GitHub data
-        env:
-          GITHUB_TOKEN: ${{ secrets.token }}  # Your secret!
+      - name: Fetch GitHub Data
         run: |
-          # Create a Node.js script to fetch real GitHub data
-          cat > generate.js << 'EOF'
-          const fs = require('fs');
+          curl -X POST \
+            -H "Authorization: bearer ${{ secrets.token }}" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"query{user(login:\"raunak2007\"){contributionsCollection{contributionCalendar{totalContributions weeks{contributionDays{contributionCount date}}}}repositories(first:100,isFork:false){totalCount}}}"}' \
+            https://api.github.com/graphql > github-data.json
           
-          async function fetchGitHubData() {
-            const query = `
-              query {
-                user(login: "raunak2007") {
-                  contributionsCollection {
-                    contributionCalendar {
-                      totalContributions
-                      weeks {
-                        contributionDays {
-                          contributionCount
-                          date
-                        }
-                      }
-                    }
-                  }
-                  repositories(first: 100, isFork: false) {
-                    totalCount
-                  }
-                }
-              }
-            `;
-            
-            const response = await fetch('https://api.github.com/graphql', {
-              method: 'POST',
-              headers: {
-                'Authorization': `Bearer ${process.env.GITHUB_TOKEN}`,
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({ query })
-            });
-            
-            const data = await response.json();
-            
-            // Process contribution data
-            const calendar = data.data.user.contributionsCollection.contributionCalendar;
-            const totalContribs = calendar.totalContributions;
-            const weeks = calendar.weeks;
-            
-            // Calculate streak
-            let currentStreak = 0;
-            let tempStreak = 0;
-            const allDays = weeks.flatMap(w => w.contributionDays).reverse();
-            
-            for (const day of allDays) {
-              if (day.contributionCount > 0) {
-                tempStreak++;
-                if (tempStreak > currentStreak) currentStreak = tempStreak;
-              } else {
-                tempStreak = 0;
-              }
-            }
-            
-            // Generate HTML for contribution grid
-            let gridHTML = '<div class="contrib-grid">';
-            const last52Weeks = weeks.slice(-52);
-            
-            for (const week of last52Weeks) {
-              gridHTML += '<div class="contrib-week">';
-              for (const day of week.contributionDays) {
-                const count = day.contributionCount;
-                let level = 0;
-                if (count > 0) level = 1;
-                if (count >= 3) level = 2;
-                if (count >= 6) level = 3;
-                if (count >= 10) level = 4;
-                
-                const levelClass = level > 0 ? `level-${level}` : '';
-                gridHTML += `<div class="contrib-day ${levelClass}" title="${count} contributions on ${day.date}"></div>`;
-              }
-              gridHTML += '</div>';
-            }
-            gridHTML += '</div>';
-            
-            // Return all the data
-            return {
-              gridHTML,
-              totalContribs,
-              currentStreak,
-              repoCount: data.data.user.repositories.totalCount
-            };
-          }
-          
-          fetchGitHubData().then(githubData => {
-            // Read the original HTML
-            let html = fs.readFileSync('index.html', 'utf8');
-            
-            // Replace placeholders with real data
-            html = html.replace('__GITHUB_GRID__', githubData.gridHTML);
-            html = html.replace('__TOTAL_CONTRIBS__', githubData.totalContribs);
-            html = html.replace('__CURRENT_STREAK__', githubData.currentStreak);
-            html = html.replace('__REPO_COUNT__', githubData.repoCount);
-            
-            // Also update the GitHub username in links
-            html = html.replace(/raunakmondal/g, 'raunak2007');
-            
-            fs.writeFileSync('index.html', html);
-            console.log('✅ Generated HTML with real GitHub data!');
-          }).catch(err => {
-            console.error('Failed to fetch GitHub data:', err);
-            // Use fallback data
-            process.exit(1);
-          });
-          EOF
-          
-          node generate.js
+          # Escape JSON for injection
+          DATA=$(cat github-data.json | jq -c .)
+          sed -i "s/__GITHUB_DATA_PLACEHOLDER__/$DATA/" index.html
       
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./
-          publish_branch: gh-pages
