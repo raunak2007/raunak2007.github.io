@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Raunak Mondal</title>
-<meta name="description" content="CS @ Carnegie Mellon. AI/ML researcher, published author.">
+<meta name="description" content="CS @ Carnegie Mellon. I find bugs where systems report success while doing the wrong thing. Agent evaluation research.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:ital,wght@0,300..700;1,300..700&display=swap" rel="stylesheet">
@@ -58,6 +58,106 @@ mark {
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 500;
+}
+
+
+/* ── Findings ── */
+.find { margin-bottom: 26px; }
+.find .find-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.find h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  font-family: var(--mono);
+}
+.find .find-state {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+.find .find-state.merged { color: var(--accent); }
+.find .find-meta {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 1px;
+}
+.find p {
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 8px;
+}
+.find code {
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--mark-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+/* ── Sonar control ── */
+#sonar {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 5;
+  max-width: min(32ch, 78vw);
+  text-align: right;
+}
+.sonar-btn {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 8px 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color .2s, border-color .2s;
+}
+.sonar-btn:hover { color: #fff; border-color: rgba(255,255,255,0.3); }
+.sonar-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.sonar-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); flex: none;
+}
+#sonar[data-state="calibrating"] .sonar-dot { background: var(--text-dim); }
+#sonar[data-state="active"] .sonar-dot,
+#sonar[data-state="inverted"] .sonar-dot { background: var(--accent); }
+#sonar[data-state="no-signal"] .sonar-dot { background: #f59e0b; }
+.sonar-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-dim);
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 4px;
+  padding: 10px 11px;
+  margin-top: 8px;
+  text-align: left;
+}
+.sonar-meter {
+  height: 2px;
+  background: rgba(255,255,255,0.1);
+  margin-top: 8px;
+  overflow: hidden;
+}
+.sonar-meter i {
+  display: block; height: 100%; width: 2px;
+  background: var(--accent);
+  transform: translateX(50%);
+  transition: transform .08s linear;
+}
+@media (max-width: 640px) {
+  #sonar { position: static; text-align: left; max-width: none; margin: 40px 0 0; }
 }
 
 /* ── Particle canvas ── */
@@ -301,8 +401,9 @@ footer {
 
 <div class="hero">
   <h1>Hi, I'm Raunak</h1>
-  <p>I'm studying CS at <a href="https://www.cs.cmu.edu/" target="_blank">Carnegie Mellon</a> (SCS '29) and I'm interested in everything from <mark>machine learning</mark> and <mark>neural networks</mark> to <mark>systems programming</mark> and <mark>graph theory</mark>. My published work focuses on using <mark>sequence-based architectures</mark> to classify autism-related behavior (<a href="https://amia.org" target="_blank">AMIA 2024</a>, 1st author) and evaluating robots for autism inclusion (<a href="https://chi2024.acm.org/" target="_blank">ACM CHI 2024</a>, co-author).</p>
-  <p>At CMU I lead a team of 10+ developers at <a href="https://scottylabs.org/" target="_blank">ScottyLabs</a> building the GSA Student Housing platform. Previously I did research at <mark>University of Hawaii</mark>, <mark>UCSD</mark>, and <mark>Ohio State</mark> — spanning LSTM-based autism detection, ableism detection via LLMs, Li-ion battery materials, and computational genomics. I also compete in math — <mark>HMMT 21st</mark>, <mark>ARML top 50</mark>, <mark>Stanford SUMaC</mark>.</p>
+  <p>I'm studying CS at <a href="https://www.cs.cmu.edu/" target="_blank">Carnegie Mellon</a> (SCS '29). Mostly I find the same bug over and over: an operation that <mark>returns success while quietly doing the wrong thing</mark>. A cache that hands back the wrong asset. A copy that copies a file onto itself. A risk statistic that returns a plausible number where the math is undefined. Six of them so far, in codebases I didn't write.</p>
+  <p>The research version of the same question is whether a system's reported score still tracks what it was built to measure. I build <mark>agent evaluation</mark> benchmarks, advised by <a href="https://scholar.google.com/citations?user=zJmXvgUAAAAJ" target="_blank">Prof. Amarnath Gupta</a> at UCSD, and I'm a Fall 2026 <mark>SPAR</mark> fellow working on deception in language models.</p>
+  <p>Day to day I'm a software engineering intern at <mark>Twinly</mark>, building agent features for a desktop assistant in C#/.NET 9, and backend &amp; database lead at <a href="https://scottylabs.org/" target="_blank">ScottyLabs</a>, where I own 85 RPC functions across ~19,000 lines of SQL. Published at <a href="https://amia.org" target="_blank">AMIA 2024</a> (1st author) and <a href="https://chi2024.acm.org/" target="_blank">ACM CHI 2024</a>.</p>
 </div>
 
 <div class="meta-links">
@@ -313,14 +414,83 @@ footer {
 
 <hr class="section-break">
 
+<div class="section-label">open source</div>
+
+<div class="find">
+  <div class="find-top"><h3>neondatabase/neon</h3><span class="find-state">reported #12950</span></div>
+  <div class="find-meta">18k stars · Rust · serverless Postgres</div>
+  <p><code>copy_object</code> took a source and a destination but built both paths from the destination, so every copy in the GCS backend copied an object onto itself and returned <code>Ok(())</code>. The compiler had been flagging the unused source parameter the whole time.</p>
+</div>
+
+<div class="find">
+  <div class="find-top"><h3>paradedb/paradedb</h3><span class="find-state merged">merged #6480</span></div>
+  <div class="find-meta">Postgres over DataFusion · Rust</div>
+  <p><code>DataFrame::aggregate</code> hardcodes implicit group-by expansion, widening the group key and displacing aggregate outputs by position. Rebuilt the aggregate and DISTINCT paths through <code>LogicalPlanBuilder</code>.</p>
+</div>
+
+<div class="find">
+  <div class="find-top"><h3>ccxt/ccxt</h3><span class="find-state merged">merged #30288</span></div>
+  <div class="find-meta">44k stars · unified API over 100+ exchanges</div>
+  <p>A transpiler regex rewrote a leading <code>!</code> inside string literals into <code>not</code>. Two shipped WebSocket subscriptions had been silently wrong since the rule was written.</p>
+</div>
+
+<div class="find">
+  <div class="find-top"><h3>nautechsystems/nautilus_trader</h3><span class="find-state merged">merged #4934</span></div>
+  <div class="find-meta">28k stars · production Rust trading engine</div>
+  <p><code>SortinoRatio</code> built a downside deviation from a single daily observation where <code>SharpeRatio</code> returns NaN, so it reported a finite, plausible number for an undefined quantity.</p>
+</div>
+
+<div class="find">
+  <div class="find-top"><h3>web-infra-dev/rspack</h3><span class="find-state">PR #15300</span></div>
+  <div class="find-meta">13k stars · ByteDance's Rust bundler</div>
+  <p>The minimize persistent cache keyed entries on an 8-byte hash and stored no identity on the value, so recovery could emit one asset carrying another's minimized body and raise no error. A stronger hash can't close it; the association is what's wrong.</p>
+</div>
+
+<div class="find" style="margin-bottom:48px;">
+  <div class="find-top"><h3>lucidrains/vector-quantize-pytorch</h3><span class="find-state merged">merged #256</span></div>
+  <div class="find-meta">the RVQ layer most codec and TTS repos import</div>
+  <p>K-means init drew batch vectors with replacement, so an 8-quantizer RVQ initialised on 800 vectors collapsed quantizers 4 through 8 to two distinct codes. Found while measuring codebook utilization on my own codec.</p>
+</div>
+
+<hr class="section-break">
+
+<div class="section-label">research</div>
+
+<div class="find">
+  <div class="find-top"><h3>CRN-Bench</h3><span class="find-state">ongoing</span></div>
+  <div class="find-meta">advised by Prof. Amarnath Gupta, UCSD</div>
+  <p>Do LLM agents run controlled experiments? A benchmark for whether an agent probing a stochastic simulator holds the seed fixed across single-parameter changes or reads noise as a finding. Scripted baselines confabulate 6 of 15 findings at 200 tool calls.</p>
+</div>
+
+<div class="find">
+  <div class="find-top"><h3>Evaluator integrity in SkyDiscover</h3><span class="find-state">Aug 2026</span></div>
+  <div class="find-meta">UC Berkeley's LLM-driven program-search framework</div>
+  <p>Dead-parameter injection perturbs the evaluator's score in train mode only, with the framework's own test mode held out. Control gap 0.000 across three runs, injected +0.089; true quality peaked at iteration 8 while reported quality kept climbing.</p>
+</div>
+
+<div class="find">
+  <div class="find-top"><h3>mini-codec</h3><span class="find-state">Sep 2026</span></div>
+  <div class="find-meta">independent · <a href="https://github.com/raunak2007/mini-codec" target="_blank">github</a></div>
+  <p>What does an adversarial loss actually buy a low-bitrate speech codec? Trained from scratch on 9 hours of LibriTTS-R. Transparent to ASR from 2 kbps. The regression at 0.5 kbps that looked adversarial traces to the fine-tune itself, and was invisible to mel distance.</p>
+</div>
+
+<div class="find" style="margin-bottom:48px;">
+  <div class="find-top"><h3>One-sided Jensen trace inequality</h3><span class="find-state">ongoing</span></div>
+  <div class="find-meta">with Zhiyu Zhang, an author of arXiv:2509.08911</div>
+  <p>Proved the paper's open even-monomial conjecture for k = 3 through 7 in all dimensions, previously known only for 2×2 at k = 3. Invited to co-lead the write-up.</p>
+</div>
+
+<hr class="section-break">
+
 <div class="section-label">experience</div>
 
-<div class="exp-item"><div class="exp-top"><h3>ScottyLabs, CMU</h3><span class="exp-date">2025–now</span></div><div class="exp-role">Lead Developer · GSA Student Housing</div></div>
+<div class="exp-item"><div class="exp-top"><h3>Twinly</h3><span class="exp-date">2026–now</span></div><div class="exp-role">Software Engineering Intern · agent features, C#/.NET 9 &amp; Electron</div></div>
+<div class="exp-item"><div class="exp-top"><h3>ScottyLabs, CMU</h3><span class="exp-date">2025–now</span></div><div class="exp-role">Backend &amp; Database Lead · GSA Student Housing</div></div>
+<div class="exp-item"><div class="exp-top"><h3>Smartbite AI</h3><span class="exp-date">2025–now</span></div><div class="exp-role">Founding Engineer · demoed at CES 2026</div></div>
+<div class="exp-item"><div class="exp-top"><h3>SPAR</h3><span class="exp-date">2026</span></div><div class="exp-role">Research Fellow · deception in language models</div></div>
+<div class="exp-item"><div class="exp-top"><h3>Carnegie AI Safety Initiative</h3><span class="exp-date">2026</span></div><div class="exp-role">Facilitator · AI Safety &amp; Philosophy reading group</div></div>
 <div class="exp-item"><div class="exp-top"><h3>University of Hawaii, Manoa</h3><span class="exp-date">2024</span></div><div class="exp-role">Student Researcher · Digital Health Lab</div></div>
-<div class="exp-item"><div class="exp-top"><h3>UCSD — Computer Science</h3><span class="exp-date">2024</span></div><div class="exp-role">Research Intern · Ableism detection via LLMs</div></div>
-<div class="exp-item"><div class="exp-top"><h3>UCSD MRSEC</h3><span class="exp-date">2023–24</span></div><div class="exp-role">Student Researcher · Materials Science</div></div>
-<div class="exp-item"><div class="exp-top"><h3>Ohio State & UCSD</h3><span class="exp-date">2023</span></div><div class="exp-role">Research Assistant · Psychiatry (NIH-funded)</div></div>
-<div class="exp-item" style="margin-bottom:48px;"><div class="exp-top"><h3>CureScience Scholars, UCSD</h3><span class="exp-date">2022–23</span></div><div class="exp-role">Bioinformatics & ML Program</div></div>
+<div class="exp-item" style="margin-bottom:48px;"><div class="exp-top"><h3>UCSD — Computer Science</h3><span class="exp-date">2024</span></div><div class="exp-role">Research Intern · Ableism detection via LLMs</div></div>
 
 <hr class="section-break">
 
@@ -363,15 +533,19 @@ footer {
 
 <div class="section-label">honors</div>
 <div class="honors-list">
-  <div class="honor-item"><strong>Stanford SUMaC</strong> — math research, 2024</div>
+  <div class="honor-item"><strong>SPAR</strong> — selected from 6,000+ applicants, 2026</div>
   <div class="honor-item"><strong>HMMT</strong> — 21st, Guts Round</div>
-  <div class="honor-item"><strong>ARML</strong> — top 50 nationally, 2023</div>
-  <div class="honor-item"><strong>National Merit</strong> — finalist, 2024–25</div>
-  <div class="honor-item"><strong>Science Olympiad</strong> — 2nd SoCal, Caltech</div>
-  <div class="honor-item"><strong>Coca-Cola Scholars</strong> — semifinalist</div>
+  <div class="honor-item"><strong>ARML</strong> — top 50 nationally</div>
+  <div class="honor-item"><strong>AIME</strong> — 5× qualifier</div>
+  <div class="honor-item"><strong>Stanford SUMaC</strong> — math research</div>
+  <div class="honor-item"><strong>CMU March Madness ML</strong> — 1st, preliminary round</div>
 </div>
 
 <footer>raunak mondal · pittsburgh · 2026</footer>
+
+<div id="sonar"></div>
+<script src="sonar-scroll.js"></script>
+<script>SonarScroll.mount(document.getElementById('sonar'));</script>
 
 <script>
 /* ── Particle canvas ── */
