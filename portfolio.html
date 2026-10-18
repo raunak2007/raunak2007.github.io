@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raunak Mondal</title>
+<meta name="description" content="Raunak Mondal, CMU CS. I build full-stack products with an LLM at the core: backend services, model and agent integration, and the interface, shipped at startups.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Newsreader:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2F4F6;
+    --surface:#FFFFFF;
+    --ink:#16212E;
+    --muted:#5A6675;
+    --line:#E1E6EB;
+    --accent:#2743B8;
+    --accent-soft:rgba(39,67,184,.08);
+    --maxw:830px;
+    --sans:"Space Grotesk",system-ui,sans-serif;
+    --serif:"Newsreader",Georgia,serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#0E1621;
+      --surface:#141F2B;
+      --ink:#E8EDF3;
+      --muted:#93A2B2;
+      --line:#233140;
+      --accent:#7F99FF;
+      --accent-soft:rgba(127,153,255,.14);
+    }
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%;overflow-x:hidden}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--serif);font-size:1.0625rem;line-height:1.58;
+    font-weight:400;-webkit-font-smoothing:antialiased;overflow-wrap:break-word;
+  }
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  a{color:inherit}
+  a:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+
+  nav{border-bottom:1px solid var(--line);position:sticky;top:0;background:color-mix(in srgb,var(--paper) 88%,transparent);backdrop-filter:saturate(1.1) blur(6px);z-index:5}
+  .nav-row{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:14px 24px;max-width:var(--maxw);margin:0 auto}
+  .brand{font-family:var(--sans);font-weight:700;letter-spacing:-.01em;font-size:1rem}
+  .nav-links{display:flex;gap:20px;font-family:var(--sans);font-size:.9rem;color:var(--muted)}
+  .nav-links a{text-decoration:none}
+  .nav-links a:hover{color:var(--accent)}
+  @media (max-width:560px){.nav-links{display:none}}
+
+  header.hero{padding:72px 0 40px}
+  .hero-grid{display:grid;grid-template-columns:1fr 230px;gap:40px;align-items:center}
+  .hero-grid>*{min-width:0}
+  h1{
+    font-family:var(--sans);font-weight:700;letter-spacing:-.02em;
+    font-size:clamp(1.9rem,5.4vw,3.25rem);line-height:1.05;margin:0 0 20px;overflow-wrap:break-word;
+  }
+  .lede{font-size:1.15rem;color:var(--ink);margin:0 0 10px;max-width:46ch}
+  .sub{color:var(--muted);max-width:54ch;margin:0}
+  .hero-links{display:flex;flex-wrap:wrap;gap:10px;margin-top:26px;font-family:var(--sans);font-size:.9rem}
+  .hero-links a{text-decoration:none;border:1px solid var(--line);padding:8px 14px;border-radius:999px;color:var(--ink);background:var(--surface);transition:border-color .15s,color .15s}
+  .hero-links a:hover{border-color:var(--accent);color:var(--accent)}
+  .hero-links a.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .hero-links a.primary:hover{color:#fff;filter:brightness(1.08)}
+
+  .flow{width:100%;height:auto;display:block;max-width:100%}
+  .flow .node{fill:var(--surface);stroke:var(--line);stroke-width:1.3}
+  .flow .node.on{fill:var(--accent);stroke:var(--accent)}
+  .flow text{font-family:var(--sans);text-anchor:middle;dominant-baseline:central}
+  .flow .lbl{fill:var(--muted);font-size:11px}
+  .flow .lbl.sm{font-size:9px}
+  .flow .lbl.on{fill:#fff;font-size:12px;font-weight:500}
+  .flow .wire{stroke:var(--accent);stroke-width:1.8;fill:none}
+  .flow .ah{fill:var(--accent)}
+  @media (max-width:640px){
+    header.hero{padding:48px 0 28px}
+    .hero-grid{grid-template-columns:1fr;gap:30px}
+    .plot-wrap{max-width:210px}
+  }
+
+  main section{padding:40px 0;border-top:1px solid var(--line)}
+  .sec-title{font-family:var(--sans);font-weight:600;font-size:1.05rem;letter-spacing:.005em;margin:0 0 4px;color:var(--ink)}
+  .sec-note{font-family:var(--sans);font-size:.82rem;color:var(--muted);margin:0 0 26px}
+
+  .work{padding:22px 0;border-top:1px solid var(--line)}
+  .work:first-of-type{border-top:0;padding-top:4px}
+  .work-top{display:flex;justify-content:space-between;align-items:baseline;gap:16px;flex-wrap:wrap}
+  .work-title{font-family:var(--sans);font-weight:600;font-size:1.12rem;margin:0;min-width:0}
+  .work-tag{font-family:var(--sans);font-size:.78rem;color:var(--muted)}
+  .work p{margin:.5rem 0 0;max-width:64ch}
+  .readout{list-style:none;display:flex;flex-wrap:wrap;gap:10px 22px;padding:0;margin:14px 0 0}
+  .readout li{font-family:var(--sans);font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;line-height:1.25}
+  .readout b{font-weight:500;font-size:1.05rem;color:var(--accent);font-variant-numeric:tabular-nums}
+  .links{display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:14px;font-family:var(--sans);font-size:.86rem}
+  .links a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent;transition:border-color .15s}
+  .links a:hover{border-bottom-color:var(--accent)}
+
+  .rows{margin:0;padding:0;list-style:none}
+  .rows li{padding:14px 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr auto;gap:4px 18px;align-items:baseline;min-width:0}
+  .rows li:first-child{border-top:0}
+  .rows .r-main{margin:0;min-width:0}
+  .rows .r-main .nm{font-family:var(--sans);font-weight:600}
+  .rows .r-sub{color:var(--muted);font-size:.97rem}
+  .rows .r-right{font-family:var(--sans);font-size:.82rem;color:var(--muted);text-align:right;white-space:nowrap}
+  .rows a{color:var(--accent);text-decoration:none}
+  .rows a:hover{text-decoration:underline}
+  @media (max-width:560px){.rows li{grid-template-columns:1fr}.rows .r-right{text-align:left}}
+
+  footer{border-top:1px solid var(--line);padding:34px 0 60px;color:var(--muted);font-family:var(--sans);font-size:.9rem}
+  .foot-links{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px}
+  .foot-links a{color:var(--ink);text-decoration:none}
+  .foot-links a:hover{color:var(--accent)}
+  .foot-note{font-size:.8rem}
+  em{font-style:italic}
+</style>
+</head>
+<body>
+<nav>
+  <div class="nav-row">
+    <span class="brand">Raunak Mondal</span>
+    <div class="nav-links">
+      <a href="#experience">Experience</a>
+      <a href="#work">Projects</a>
+      <a href="#oss">Open source</a>
+      <a href="/resume.pdf">Résumé</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="hero-grid">
+      <div>
+        <h1>I build full-stack products with an LLM at the core.</h1>
+        <p class="lede">CS at Carnegie Mellon, concentrating in machine learning.</p>
+        <p class="sub">I work across the whole stack of an AI product: the backend services, the model and agent layer that calls real tools, and the interface. I have shipped it at two startups, and I like the unglamorous parts, the auth, the webhooks, the piece that has to not break.</p>
+        <div class="hero-links">
+          <a class="primary" href="/resume.pdf">Résumé</a>
+          <a href="https://github.com/raunak2007">GitHub</a>
+          <a href="https://www.linkedin.com/in/raunakmondal1">LinkedIn</a>
+          <a href="mailto:rmondal@andrew.cmu.edu">Email</a>
+        </div>
+      </div>
+      <div class="plot-wrap">
+        <svg class="flow" viewBox="0 0 200 156" role="img" aria-label="An agent message flow: an incoming message reaches an agent that calls tools and APIs and returns a reply.">
+          <defs>
+            <marker id="ah" markerWidth="8" markerHeight="8" refX="5.4" refY="3" orient="auto" markerUnits="userSpaceOnUse">
+              <path class="ah" d="M0 0 L6 3 L0 6 Z"/>
+            </marker>
+          </defs>
+          <rect class="node" x="56" y="6" width="88" height="28" rx="7"/>
+          <text class="lbl" x="100" y="20">message</text>
+          <line class="wire" x1="100" y1="34" x2="100" y2="57" marker-end="url(#ah)"/>
+          <rect class="node on" x="52" y="60" width="96" height="34" rx="7"/>
+          <text class="lbl on" x="100" y="77">agent</text>
+          <rect class="node" x="159" y="64" width="37" height="26" rx="6"/>
+          <text class="lbl sm" x="177" y="77">tools</text>
+          <line class="wire" x1="148" y1="73" x2="157" y2="73" marker-end="url(#ah)"/>
+          <line class="wire" x1="157" y1="81" x2="148" y2="81" marker-end="url(#ah)"/>
+          <line class="wire" x1="100" y1="94" x2="100" y2="117" marker-end="url(#ah)"/>
+          <rect class="node" x="56" y="120" width="88" height="28" rx="7"/>
+          <text class="lbl" x="100" y="134">reply</text>
+        </svg>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section id="experience">
+      <h2 class="sec-title">Experience</h2>
+      <p class="sec-note">Shipping full-stack AI products on small teams.</p>
+      <ul class="rows">
+        <li>
+          <p class="r-main"><span class="nm">Twinly</span>, Software Engineering Intern<br><span class="r-sub">Built the plugin SDK that lets an LLM agent call external tools and APIs under scoped permissions, the tool-orchestration layer of the product, and ship features across the backend and the Electron/React UI.</span></p>
+          <span class="r-right">Since 2026<br>30+ PRs · 289 commits</span>
+        </li>
+        <li>
+          <p class="r-main"><span class="nm">ScottyLabs × CMU GSA</span>, Backend &amp; Database Developer<br><span class="r-sub">Own the backend and API layer of a production web platform: 85 RPC endpoints, 57 migrations, ~19,000 lines of SQL, every public request authorized server-side.</span></p>
+          <span class="r-right">Since 2025<br>240 PRs · 512 commits</span>
+        </li>
+        <li>
+          <p class="r-main"><span class="nm">Smartbite AI</span>, Founding Engineer<br><span class="r-sub">Built the core LLM product from scratch and shipped it to a live demo at CES 2026: agent workflows pairing a conversational recommender with constraint solving.</span></p>
+          <span class="r-right">Since 2025</span>
+        </li>
+      </ul>
+    </section>
+
+    <section id="work">
+      <h2 class="sec-title">Selected work</h2>
+      <p class="sec-note">Full-stack systems, and the models inside them.</p>
+
+      <article class="work">
+        <div class="work-top">
+          <h3 class="work-title">rfsim: research field simulator</h3>
+          <span class="work-tag">Flask · React · Neo4j</span>
+        </div>
+        <p>A full-stack simulator of research-field dynamics: a Flask backend over a Neo4j graph of OpenAlex bibliometric data, a React frontend, and a discrete-event engine using k-truss decomposition and spectral clustering. Ships with a one-command bootstrap and a Makefile for clean handoff.</p>
+      </article>
+
+      <article class="work">
+        <div class="work-top">
+          <h3 class="work-title">CRN-Bench: do LLM agents run controlled experiments?</h3>
+          <span class="work-tag">Python · LLM APIs · advised at UC San Diego</span>
+        </div>
+        <p>A benchmark that drives LLM agents against a stochastic simulator and scores whether they hold variables fixed or read noise as signal. Scripted baselines bound the false-positive range before any model is run, so a real finding is separable from a lucky one. Built on a 21-parameter simulator over the OpenAlex citation graph.</p>
+        <ul class="readout">
+          <li><b>0 / 15</b> confabulated at 50 calls</li>
+          <li><b>6 / 15</b> confabulated at 200</li>
+          <li><b>21</b> simulator parameters</li>
+        </ul>
+      </article>
+
+      <article class="work">
+        <div class="work-top">
+          <h3 class="work-title">Image memorability with a calibrated trust layer</h3>
+          <span class="work-tag">PyTorch · CLIP ViT · Modal</span>
+        </div>
+        <p>Predicts LaMem image memorability at the human consistency ceiling, then adds a layer that reports when a prediction should not be trusted. Split-conformal calibration gives near-exact coverage, and an out-of-distribution gate catches inputs the model's own variance cannot.</p>
+        <ul class="readout">
+          <li><b>0.699</b> Spearman (ceiling ≈ 0.68)</li>
+          <li><b>0.905</b> calibrated coverage</li>
+          <li><b>0.93</b> OOD AUROC</li>
+        </ul>
+        <div class="links"><a href="https://github.com/raunak2007/lamem-memorability">github.com/raunak2007/lamem-memorability</a></div>
+      </article>
+
+      <article class="work">
+        <div class="work-top">
+          <h3 class="work-title">Reported vs. true quality in SkyDiscover</h3>
+          <span class="work-tag">LLM evaluation · independent research</span>
+        </div>
+        <p>A dead-parameter injection experiment on UC Berkeley's LLM-driven search framework. Perturbing the evaluator's score in train mode only, with the framework's own test mode held out, surfaced a reward signal that kept climbing while true quality had already plateaued. A metric that looked real and was not.</p>
+      </article>
+    </section>
+
+    <section id="oss">
+      <h2 class="sec-title">Open source</h2>
+      <p class="sec-note">Each one a quietly wrong output, caught with a failing test.</p>
+      <ul class="rows">
+        <li>
+          <p class="r-main"><a href="https://github.com/ccxt/ccxt/pull/30288"><span class="nm">ccxt</span></a>: a transpiler regex rewrote a leading <em>!</em> inside string literals, silently breaking two shipped WebSocket subscriptions. Added a lookbehind and regenerated all Python output.</p>
+          <span class="r-right">44k★ · merged</span>
+        </li>
+        <li>
+          <p class="r-main"><a href="https://github.com/dlt-hub/dlt/pull/4542"><span class="nm">dlt</span></a>: a schema hash persisted after a partial migration let an interrupted load replay as complete. Gated the hash write on a full migration; generalized across all destinations.</p>
+          <span class="r-right">merged</span>
+        </li>
+        <li>
+          <p class="r-main"><a href="https://github.com/nautechsystems/nautilus_trader/pull/4934"><span class="nm">nautilus_trader</span></a>: a risk metric returned a finite, plausible number where the paired metric correctly returns NaN. Added the guard and rstest cases.</p>
+          <span class="r-right">28k★ · merged</span>
+        </li>
+        <li>
+          <p class="r-main"><span class="nm">openapi-generator</span>: three Kotlin generator fixes shipped in release 7.25.0.</p>
+          <span class="r-right">27k★ · merged</span>
+        </li>
+      </ul>
+    </section>
+
+    <section id="research">
+      <h2 class="sec-title">Research &amp; writing</h2>
+      <ul class="rows">
+        <li>
+          <p class="r-main"><span class="nm">SPAR Fall 2026</span>: do less coercive interventions reduce AI deception?<br><span class="r-sub">Model organisms with a planted goal conflict; co-authored paper plus released code. Selected from 6,000+ applications.</span></p>
+          <span class="r-right">mentored at CMU</span>
+        </li>
+        <li>
+          <p class="r-main"><span class="nm">AMIA 2024</span>: sequence-based neural architectures for autism-related behavior classification.<br><span class="r-sub">First author.</span></p>
+          <span class="r-right">publication</span>
+        </li>
+        <li>
+          <p class="r-main"><span class="nm">ACM CHI 2024</span>: are robots ready to deliver autism inclusion?<br><span class="r-sub">Co-author.</span></p>
+          <span class="r-right">publication</span>
+        </li>
+      </ul>
+    </section>
+  </main>
+
+  <footer>
+    <div class="foot-links">
+      <a href="https://github.com/raunak2007">GitHub</a>
+      <a href="https://www.linkedin.com/in/raunakmondal1">LinkedIn</a>
+      <a href="mailto:rmondal@andrew.cmu.edu">rmondal@andrew.cmu.edu</a>
+      <a href="/resume.pdf">Résumé</a>
+    </div>
+    <p class="foot-note">Carnegie Mellon University · School of Computer Science</p>
+  </footer>
+</div>
+</body>
+</html>
