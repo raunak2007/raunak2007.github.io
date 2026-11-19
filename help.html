@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF letter replacer</title>
+<style>
+:root {
+  color-scheme: light dark;
+  --page: #faf9f5; --panel: #f1efe8; --text: #1f1e1d; --muted: #5f5e5a;
+  --border: #b4b2a9; --danger: #a32d2d; --radius: 8px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --page: #1f1e1d; --panel: #2c2c2a; --text: #f1efe8; --muted: #b4b2a9; --border: #5f5e5a; --danger: #f09595; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--text); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+main { max-width: 920px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; font-weight: 500; margin: 0 0 16px; }
+button { height: 36px; padding: 0 14px; font: inherit; font-size: 14px; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer; }
+button:hover { background: var(--panel); }
+input[type=text] { width: 56px; height: 36px; padding: 0 8px; text-align: center; font: inherit; color: var(--text); background: transparent; border: 1px solid var(--border); border-radius: var(--radius); }
+input[type=range] { width: 130px; }
+input[type=checkbox] { width: 16px; height: 16px; margin: 0; }
+.row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 12px; }
+.lab { font-size: 14px; color: var(--muted); }
+.grow { flex: 1; }
+.clip { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.check { display: flex; align-items: center; gap: 6px; }
+.pg { min-width: 92px; text-align: center; }
+.zv { font-size: 14px; font-weight: 500; min-width: 44px; }
+.status { font-size: 13px; color: var(--muted); margin: 0 0 4px; }
+.err { font-size: 13px; color: var(--danger); }
+p.err { margin: 0 0 12px; }
+.stage { background: var(--panel); border-radius: 12px; padding: 12px; overflow-x: auto; }
+.empty { border: 1px dashed var(--border); border-radius: var(--radius); padding: 3rem 1rem; text-align: center; font-size: 14px; color: var(--muted); }
+.wrap { position: relative; margin: 0 auto; }
+.wrap canvas { display: block; }
+.wrap .over { position: absolute; left: 0; top: 0; }
+</style>
+</head>
+<body>
+<main>
+<h1>PDF letter replacer</h1>
+
+<div class="row">
+  <button id="plr-open" type="button">Choose PDF</button>
+  <span id="plr-name" class="lab grow clip">No file chosen</span>
+  <button id="plr-dl" type="button">Download PDF</button>
+  <input id="plr-file" type="file" accept="application/pdf,.pdf" hidden>
+</div>
+
+<div class="row">
+  <label class="lab" for="plr-ch">Replace with</label>
+  <input id="plr-ch" type="text" maxlength="4" placeholder="a" autocomplete="off" autocapitalize="off" spellcheck="false">
+  <span id="plr-cherr" class="err"></span>
+  <span class="grow"></span>
+  <button id="plr-prev" type="button">Previous</button>
+  <span id="plr-pg" class="lab pg">No pages yet</span>
+  <button id="plr-next" type="button">Next</button>
+</div>
+
+<div class="row">
+  <label class="lab" for="plr-zoom">Zoom</label>
+  <input id="plr-zoom" type="range" min="100" max="300" step="25" value="100">
+  <span id="plr-zv" class="zv">100%</span>
+  <label class="lab check"><input id="plr-own" type="checkbox" checked>Reuse the PDF's own font</label>
+  <span class="grow"></span>
+  <button id="plr-reset" type="button">Undo all</button>
+</div>
+
+<p id="plr-status" class="status">Edits run in your browser. Nothing is uploaded.</p>
+<p id="plr-err" class="err"></p>
+
+<div id="plr-stage" class="stage">
+  <div id="plr-empty" class="empty">Drop a PDF here or choose a file</div>
+  <div id="plr-wrap" class="wrap" style="width:0;height:0">
+    <canvas id="plr-canvas" width="0" height="0"></canvas>
+    <canvas id="plr-over" class="over" width="0" height="0" role="img" aria-label="PDF page. Click a letter to replace it."></canvas>
+  </div>
+</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  const stage = $('plr-stage'), wrap = $('plr-wrap'), canvas = $('plr-canvas'), over = $('plr-over'), chEl = $('plr-ch'), chErr = $('plr-cherr');
+  const CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/';
+  const HINT = 'Type a replacement character, then click letters on the page. Click a changed letter to restore it.';
+
+  // orig: original file bytes. src: pdf.js doc of the original. view: pdf.js doc of the edited preview.
+  let orig = null, fileName = 'document.pdf', src = null, view = null, total = 0, cur = 1, shown = 0, zoom = 1;
+  // edits: "page:glyphIndex" -> edit. pages: page -> glyph data. fmaps: font -> (character -> char code).
+  let edits = new Map(), pages = new Map(), fmaps = new Map(), fcache = new Map();
+  let scanP = Promise.resolve(), loadSeq = 0, showSeq = 0, buildSeq = 0, buildT = 0, viewT = 0, stats = null;
+  let glyphs = [], Q = new Float32Array(0), hover = -1, vp = null;
+
+  const setStatus = t => { $('plr-status').textContent = t; };
+  const setErr = t => { $('plr-err').textContent = t; };
+  const uiErr = m => Object.assign(new Error(m), { ui: true });
+  const mul = (a, b) => [a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1], a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3], a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]];
+  const params = data => ({ data, cMapUrl: CDN + 'cmaps/', cMapPacked: true, standardFontDataUrl: CDN + 'standard_fonts/', isEvalSupported: false });
+
+  // Wait for the CDN libraries to finish loading.
+  function libs() {
+    return new Promise((res, rej) => {
+      let n = 0;
+      (function chk() {
+        if (window.pdfjsLib && window.PDFLib && (window.pdfjsWorker || n > 60)) return res();
+        if (++n > 300) return rej(new Error('libs'));
+        setTimeout(chk, 50);
+      })();
+    });
+  }
+
+  function fontOf(page, name) {
+    if (fcache.has(name)) return Promise.resolve(fcache.get(name));
+    return new Promise(res => {
+      let done = false;
+      const fin = f => { if (done) return; done = true; const v = f && typeof f === 'object' ? f : null; fcache.set(name, v); res(v); };
+      setTimeout(() => fin(null), 5000);
+      try { page.commonObjs.get(name, fin); } catch (e) { fin(null); }
+    });
+  }
+
+  // Walk a page's drawing operators, tracking the text state, and record every glyph's
+  // position plus the character codes of each text-show operator.
+  async function extract(p, keep) {
+    const doc = src, page = await doc.getPage(p), opl = await page.getOperatorList({ annotationMode: 0 });
+    const O = pdfjsLib.OPS, fn = opl.fnArray, ar = opl.argsArray, names = new Set(), fonts = {}, out = [], shows = [];
+    for (let i = 0; i < fn.length; i++) {
+      if (fn[i] === O.setFont) names.add(ar[i][0]);
+      else if (fn[i] === O.setGState) for (const kv of ar[i][0] || []) if (kv[0] === 'Font' && kv[1]) names.add(kv[1][0]);
+    }
+    await Promise.all(Array.from(names).map(async nm => { fonts[nm] = await fontOf(page, nm); }));
+    if (doc !== src) return { glyphs: out, shows };
+    let st = { ctm: [1, 0, 0, 1, 0, 0], tm: [1, 0, 0, 1, 0, 0], x: 0, y: 0, lx: 0, ly: 0, cs: 0, ws: 0, hs: 1, lead: 0, font: null, fname: '', fs: 0, fd: 1, fm: 0.001, rise: 0, mode: 0, fill: [0, 0, 0] };
+    const stack = [], grp = [];
+    let form = 0, ann = 0, sm = 0;
+    const push = () => { stack.push(st); st = Object.assign({}, st); };
+    const pop = () => { if (stack.length) st = stack.pop(); };
+    const setF = (nm, size) => { const f = fonts[nm] || null; st.font = f; st.fname = nm; st.fm = (f && f.fontMatrix && f.fontMatrix[0]) || 0.001; st.fd = size < 0 ? -1 : 1; st.fs = Math.abs(size) || 0; };
+    for (let i = 0; i < fn.length; i++) {
+      const a = ar[i];
+      switch (fn[i]) {
+        case O.save: push(); break;
+        case O.restore: pop(); break;
+        case O.transform: st.ctm = mul(st.ctm, a); break;
+        case O.paintFormXObjectBegin: push(); form++; if (a[0] && a[0].length === 6) st.ctm = mul(st.ctm, a[0]); break;
+        case O.paintFormXObjectEnd: pop(); form--; break;
+        case O.beginGroup: push(); grp.push(!!(a[0] && a[0].smask)); if (grp[grp.length - 1]) sm++; break;
+        case O.endGroup: pop(); if (grp.pop()) sm--; break;
+        case O.beginAnnotation: push(); ann++; break;
+        case O.endAnnotation: pop(); ann--; break;
+        case O.setGState: for (const kv of a[0] || []) if (kv[0] === 'Font' && kv[1]) setF(kv[1][0], kv[1][1]); break;
+        case O.beginText: st.tm = [1, 0, 0, 1, 0, 0]; st.x = st.lx = 0; st.y = st.ly = 0; break;
+        case O.setCharSpacing: st.cs = a[0]; break;
+        case O.setWordSpacing: st.ws = a[0]; break;
+        case O.setHScale: st.hs = a[0] / 100; break;
+        case O.setLeading: st.lead = -a[0]; break;
+        case O.setFont: setF(a[0], a[1]); break;
+        case O.setTextRenderingMode: st.mode = a[0]; break;
+        case O.setTextRise: st.rise = a[0]; break;
+        case O.moveText: st.x = st.lx += a[0]; st.y = st.ly += a[1]; break;
+        case O.setLeadingMoveText: st.lead = a[1]; st.x = st.lx += a[0]; st.y = st.ly += a[1]; break;
+        case O.setTextMatrix: { const m = a.length >= 6 ? a : a[0]; st.tm = [m[0], m[1], m[2], m[3], m[4], m[5]]; st.x = st.lx = 0; st.y = st.ly = 0; break; }
+        case O.nextLine: st.x = st.lx; st.y = st.ly += st.lead; break;
+        case O.setFillRGBColor: st.fill = typeof a[0] === 'string' ? [1, 3, 5].map(q => parseInt(a[0].substr(q, 2), 16) || 0) : [a[0], a[1], a[2]]; break;
+        case O.setFillColorN: st.fill = null; break;
+        case O.showText: {
+          const arr = a[0] || [], f = st.font, fs = st.fs, pl = form === 0 && ann === 0, codes = [];
+          if (pl) shows.push(codes);
+          const t3 = !!(f && f.isType3Font), vert = !!(f && f.vertical), inv = (st.mode & 3) === 3;
+          const hsd = st.hs * st.fd, was = fs * st.fm, dead = fs === 0 || (t3 && st.mode === 3);
+          const M = mul(st.ctm, st.tm), LX = Math.hypot(M[0], M[1]), LY = Math.hypot(M[2], M[3]);
+          let run = null;
+          if (keep && !vert && !dead && sm === 0 && ann === 0 && LX > 0 && LY > 0 && hsd) {
+            const sg = hsd < 0 ? -1 : 1;
+            let asc = f ? +f.ascent : NaN, desc = f ? +f.descent : NaN;
+            asc = asc > 0.3 && asc < 1.5 ? Math.min(asc, 0.95) : 0.85;
+            desc = desc < -0.02 && desc > -0.8 ? Math.max(desc, -0.3) : -0.22;
+            run = { si: pl ? shows.length - 1 : -1, fname: st.fname, font: f, fs, was, csd: st.cs * st.fd, wsd: st.ws * st.fd, fill: st.fill, inv, dx: M[0] / LX * sg, dy: M[1] / LX * sg, ux: M[2] / LY * st.fd, uy: M[3] / LY * st.fd, sz: fs * LY, kx: LX * Math.abs(hsd), asc, desc };
+          }
+          let x = 0, gi = 0, fm = fmaps.get(st.fname);
+          for (const g of arr) {
+            if (typeof g === 'number') { x += (vert ? 1 : -1) * g * fs / 1000; continue; }
+            if (!g || typeof g !== 'object') continue;
+            const gw = +g.width || 0, sp = ((g.isSpace ? st.ws : 0) + st.cs) * st.fd, u = g.unicode, code = g.originalCharCode;
+            let cw = gw * was + sp;
+            if (vert) { const vm = g.vmetric || f.defaultVMetrics; cw = (vm ? -vm[0] : gw) * was - sp; }
+            codes.push(code);
+            if (typeof u === 'string' && u.trim() && gw > 0) {
+              if (typeof code === 'number' && g.isInFont !== false && Array.from(u).length === 1) {
+                if (!fm) fmaps.set(st.fname, fm = new Map());
+                if (!fm.has(u)) fm.set(u, { code, w: gw });
+              }
+              if (run) {
+                const tx = st.x + x * hsd, ty = st.y + st.rise;
+                out.push({ r: run, gi, ch: u, cw, bx: M[0] * tx + M[2] * ty + M[4], by: M[1] * tx + M[3] * ty + M[5], sw: gw * was * run.kx });
+              }
+            }
+            x += cw; gi++;
+          }
+          if (!dead) { if (vert) st.y -= x; else st.x += x * hsd; }
+          break;
+        }
+      }
+    }
+    if (!keep) { try { page.cleanup(); } catch (e) {} }
+    return { glyphs: out, shows };
+  }
+
+  function pageData(p) {
+    if (!pages.has(p)) { const m = pages, pr = extract(p, true); pr.catch(() => { if (m.get(p) === pr) m.delete(p); }); m.set(p, pr); }
+    return pages.get(p);
+  }
+
+  // Glyph boxes as quads in on-screen coordinates.
+  function quads(gs, v) {
+    const q = new Float32Array(gs.length * 8);
+    for (let i = 0; i < gs.length; i++) {
+      const g = gs[i], r = g.r, a = r.asc * r.sz, d = r.desc * r.sz, ex = g.bx + r.dx * g.sw, ey = g.by + r.dy * g.sw;
+      const pts = [g.bx + r.ux * d, g.by + r.uy * d, ex + r.ux * d, ey + r.uy * d, ex + r.ux * a, ey + r.uy * a, g.bx + r.ux * a, g.by + r.uy * a];
+      for (let k = 0; k < 8; k += 2) { const c = v.convertToViewportPoint(pts[k], pts[k + 1]); q[i * 8 + k] = c[0]; q[i * 8 + k + 1] = c[1]; }
+    }
+    return q;
+  }
+
+  // Which glyph is under the pointer.
+  function hit(mx, my) {
+    let best = -1, bd = Infinity;
+    for (let i = 0, n = glyphs.length; i < n; i++) {
+      const o = i * 8; let s = 0, ok = true;
+      for (let k = 0; k < 8; k += 2) {
+        const x1 = Q[o + k], y1 = Q[o + k + 1], x2 = Q[o + (k + 2) % 8], y2 = Q[o + (k + 3) % 8];
+        const c = (x2 - x1) * (my - y1) - (y2 - y1) * (mx - x1);
+        if (c === 0) continue;
+        const sg = c > 0 ? 1 : -1;
+        if (s === 0) s = sg; else if (sg !== s) { ok = false; break; }
+      }
+      if (ok && s) { const d = Math.pow((Q[o] + Q[o + 4]) / 2 - mx, 2) + Math.pow((Q[o + 1] + Q[o + 5]) / 2 - my, 2); if (d < bd) { bd = d; best = i; } }
+    }
+    return best;
+  }
+
+  // Background and ink colors around a glyph, used when a letter has to be covered and redrawn.
+  function sample(i) {
+    const res = { bg: [255, 255, 255], fg: [0, 0, 0] };
+    if (!vp || !canvas.width) return res;
+    const o = i * 8, k = canvas.width / vp.width;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let j = 0; j < 8; j += 2) { x0 = Math.min(x0, Q[o + j]); x1 = Math.max(x1, Q[o + j]); y0 = Math.min(y0, Q[o + j + 1]); y1 = Math.max(y1, Q[o + j + 1]); }
+    const t = Math.max(1, Math.round(1.5 * k));
+    const X0 = Math.max(0, Math.floor(x0 * k) - t), Y0 = Math.max(0, Math.floor(y0 * k) - t);
+    const X1 = Math.min(canvas.width, Math.ceil(x1 * k) + t), Y1 = Math.min(canvas.height, Math.ceil(y1 * k) + t);
+    const w = X1 - X0, h = Y1 - Y0;
+    if (!(w >= 3 && h >= 3)) return res;
+    let d;
+    try { d = canvas.getContext('2d').getImageData(X0, Y0, w, h).data; } catch (e) { return res; }
+    const bins = new Map(); let top = null;
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      if (x >= t && x < w - t && y >= t && y < h - t) continue;
+      const q = (y * w + x) * 4, key = (d[q] >> 3) << 10 | (d[q + 1] >> 3) << 5 | d[q + 2] >> 3;
+      let b = bins.get(key);
+      if (!b) bins.set(key, b = [0, 0, 0, 0]);
+      b[0]++; b[1] += d[q]; b[2] += d[q + 1]; b[3] += d[q + 2];
+      if (!top || b[0] > top[0]) top = b;
+    }
+    if (top) res.bg = [top[1] / top[0], top[2] / top[0], top[3] / top[0]];
+    let far = -1;
+    for (let q = 0; q < d.length; q += 4) {
+      const dist = Math.pow(d[q] - res.bg[0], 2) + Math.pow(d[q + 1] - res.bg[1], 2) + Math.pow(d[q + 2] - res.bg[2], 2);
+      if (dist > far) { far = dist; res.fg = [d[q], d[q + 1], d[q + 2]]; }
+    }
+    return res;
+  }
+
+  // Overlay: underline changed letters, highlight the hovered one.
+  function drawOver() {
+    const g = over.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, over.width, over.height);
+    if (!vp) return;
+    const k = over.width / vp.width;
+    g.setTransform(k, 0, 0, k, 0, 0);
+    g.strokeStyle = '#378ADD'; g.lineWidth = 1.5;
+    for (const e of edits.values()) if (e.p === shown && e.i < glyphs.length) { const o = e.i * 8; g.beginPath(); g.moveTo(Q[o], Q[o + 1]); g.lineTo(Q[o + 2], Q[o + 3]); g.stroke(); }
+    if (hover >= 0 && hover < glyphs.length) {
+      const o = hover * 8;
+      g.beginPath(); g.moveTo(Q[o], Q[o + 1]);
+      for (let j = 2; j < 8; j += 2) g.lineTo(Q[o + j], Q[o + j + 1]);
+      g.closePath(); g.fillStyle = 'rgba(55,138,221,0.28)'; g.fill(); g.lineWidth = 1; g.stroke();
+    }
+  }
+
+  // Render the current page (from the edited preview if there is one).
+  async function show() {
+    if (!src) return;
+    const seq = ++showSeq, p = cur;
+    try {
+      const page = await (view || src).getPage(p);
+      const sc = Math.max(200, stage.clientWidth - 24) / page.getViewport({ scale: 1 }).width * zoom;
+      const v = page.getViewport({ scale: sc });
+      let d = Math.min(window.devicePixelRatio || 1, 2);
+      const px = v.width * v.height * d * d;
+      if (px > 16e6) d *= Math.sqrt(16e6 / px);
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(v.width * d)); c.height = Math.max(1, Math.round(v.height * d));
+      await page.render({ canvasContext: c.getContext('2d'), viewport: page.getViewport({ scale: sc * d }) }).promise;
+      let pd;
+      try { pd = await pageData(p); } catch (e) { pd = { glyphs: [], shows: [] }; }
+      if (seq !== showSeq) return;
+      canvas.width = over.width = c.width; canvas.height = over.height = c.height;
+      for (const el of [canvas, over, wrap]) { el.style.width = v.width + 'px'; el.style.height = v.height + 'px'; }
+      canvas.getContext('2d').drawImage(c, 0, 0);
+      if (shown !== p) hover = -1;
+      vp = v; shown = p; glyphs = pd.glyphs; Q = quads(glyphs, v);
+      drawOver();
+      $('plr-pg').textContent = 'Page ' + p + ' of ' + total;
+    } catch (e) { if (seq === showSeq) setErr("This page couldn't be displayed. Try another page."); }
+  }
+
+  // Skip inline image data (BI ... ID <data> EI) in a content stream.
+  function skipImg(b, i, ws) {
+    const n = b.length;
+    for (let j = i + 1; j + 1 < n; j++) {
+      if (b[j] === 69 && b[j + 1] === 73 && ws(b[j - 1]) && (j + 2 >= n || ws(b[j + 2]))) {
+        let ok = true;
+        for (let q = j + 2; q < Math.min(n, j + 12); q++) if (b[q] > 126 || (b[q] < 32 && !ws(b[q]))) { ok = false; break; }
+        if (ok) return j + 2;
+      }
+    }
+    return n;
+  }
+
+  // Tokenize a content stream and return every text-show operator (Tj, TJ, ', ") with its byte range.
+  function lex(b) {
+    const n = b.length, shows = [];
+    const ws = c => c === 32 || c === 10 || c === 13 || c === 9 || c === 12 || c === 0;
+    const dl = c => c === 40 || c === 41 || c === 60 || c === 62 || c === 91 || c === 93 || c === 123 || c === 125 || c === 47 || c === 37;
+    let i = 0, op = [], bi = false;
+    while (i < n) {
+      const c = b[i];
+      if (ws(c)) { i++; continue; }
+      if (c === 37) { while (i < n && b[i] !== 10 && b[i] !== 13) i++; continue; }
+      const s = i;
+      if (c === 40) {
+        const o = []; let dep = 1; i++;
+        while (i < n && dep > 0) {
+          const d = b[i++];
+          if (d === 92) {
+            const e = b[i++];
+            if (e === 110) o.push(10); else if (e === 114) o.push(13); else if (e === 116) o.push(9); else if (e === 98) o.push(8); else if (e === 102) o.push(12);
+            else if (e === 13) { if (b[i] === 10) i++; }
+            else if (e === 10) { }
+            else if (e >= 48 && e <= 55) { let v = e - 48; if (b[i] >= 48 && b[i] <= 55) { v = v * 8 + b[i++] - 48; if (b[i] >= 48 && b[i] <= 55) v = v * 8 + b[i++] - 48; } o.push(v); }
+            else if (e !== undefined) o.push(e);
+          } else if (d === 40) { dep++; o.push(d); }
+          else if (d === 41) { if (--dep > 0) o.push(d); }
+          else o.push(d);
+        }
+        op.push({ t: 1, s, b: o });
+        continue;
+      }
+      if (c === 60) {
+        if (b[i + 1] === 60) { i += 2; op.push({ t: 0, s }); continue; }
+        const o = []; let hi = -1; i++;
+        while (i < n && b[i] !== 62) {
+          const d = b[i++], v = d >= 48 && d <= 57 ? d - 48 : d >= 65 && d <= 70 ? d - 55 : d >= 97 && d <= 102 ? d - 87 : -1;
+          if (v < 0) continue;
+          if (hi < 0) hi = v; else { o.push(hi * 16 + v); hi = -1; }
+        }
+        if (hi >= 0) o.push(hi * 16);
+        i++;
+        op.push({ t: 1, s, b: o });
+        continue;
+      }
+      if (c === 62) { i += b[i + 1] === 62 ? 2 : 1; op.push({ t: 0, s }); continue; }
+      if (c === 91) { i++; op.push({ t: 2, s }); continue; }
+      if (c === 93) { i++; op.push({ t: 3, s }); continue; }
+      if (c === 41 || c === 123 || c === 125) { i++; continue; }
+      if (c === 47) { i++; while (i < n && !ws(b[i]) && !dl(b[i])) i++; op.push({ t: 0, s }); continue; }
+      while (i < n && !ws(b[i]) && !dl(b[i])) i++;
+      let k = '';
+      for (let j = s; j < i; j++) k += String.fromCharCode(b[j]);
+      if (/^[+-]?(\d+\.?\d*|\.\d+)$/.test(k)) { op.push({ t: 4, s, r: k }); continue; }
+      if (k === 'true' || k === 'false' || k === 'null') { op.push({ t: 0, s }); continue; }
+      const len = op.length, z = op[len - 1];
+      if (k === 'Tj' || k === "'") shows.push(z && z.t === 1 ? { k, s: z.s, e: i, it: [z] } : { bad: 1 });
+      else if (k === '"') { const y = op[len - 2], x = op[len - 3]; shows.push(z && z.t === 1 && y && y.t === 4 && x && x.t === 4 ? { k, s: x.s, e: i, it: [z], pre: [x.r, y.r] } : { bad: 1 }); }
+      else if (k === 'TJ') { let a = len - 2; while (a >= 0 && op[a].t !== 2) a--; shows.push(z && z.t === 3 && a >= 0 ? { k, s: op[a].s, e: i, it: op.slice(a + 1, len - 1) } : { bad: 1 }); }
+      else if (k === 'BI') bi = true;
+      else if (k === 'ID' && bi) { bi = false; i = skipImg(b, i, ws); }
+      op = [];
+    }
+    return shows;
+  }
+
+  // Check that a text-show operator's bytes match the codes pdf.js reported. Returns bytes per code (1 or 2), or 0.
+  function match(tk, codes) {
+    if (!tk || tk.bad || !codes) return 0;
+    let tot = 0;
+    for (const it of tk.it) if (it.t === 1) tot += it.b.length;
+    const n = codes.length;
+    if (!n) return tot ? 0 : 1;
+    const w = tot / n;
+    if (w !== 1 && w !== 2) return 0;
+    let q = 0;
+    for (const it of tk.it) if (it.t === 1) {
+      if (it.b.length % w) return 0;
+      for (let j = 0; j < it.b.length; j += w) if ((w === 1 ? it.b[j] : it.b[j] * 256 + it.b[j + 1]) !== codes[q++]) return 0;
+    }
+    return w;
+  }
+
+  // Rebuild one text-show operator as a TJ array with swapped or removed codes, keeping the total advance.
+  function rewrite(tk, w, eds) {
+    const out = []; let hexs = '', gi = 0;
+    const hx = v => (v & 255).toString(16).padStart(2, '0');
+    const fl = () => { if (hexs) { out.push('<' + hexs + '>'); hexs = ''; } };
+    const num = v => { if (Math.abs(v) >= 0.001) { fl(); out.push(String(Math.round(v * 1000) / 1000)); } };
+    for (const it of tk.it) {
+      if (it.t === 4) { fl(); out.push(it.r); }
+      else if (it.t === 1) for (let j = 0; j < it.b.length; j += w, gi++) {
+        const e = eds.get(gi);
+        if (!e) { hexs += hx(it.b[j]); if (w === 2) hexs += hx(it.b[j + 1]); }
+        else if (e.k) { num(e.n); if (w === 2) hexs += hx(e.code >> 8); hexs += hx(e.code); num(e.n); }
+        else num(e.n);
+      }
+    }
+    fl();
+    const s = '[' + out.join(' ') + '] TJ';
+    return ' ' + (tk.k === "'" ? 'T* ' + s : tk.k === '"' ? tk.pre[0] + ' Tw ' + tk.pre[1] + ' Tc T* ' + s : s) + ' ';
+  }
+
+  function splice(buf, reps) {
+    reps.sort((a, b) => a.s - b.s);
+    const enc = new TextEncoder(), parts = []; let pos = 0, len = 0;
+    for (const r of reps) { const a = buf.subarray(pos, r.s), t = enc.encode(r.t); parts.push(a, t); len += a.length + t.length; pos = r.e; }
+    parts.push(buf.subarray(pos)); len += buf.length - pos;
+    const out = new Uint8Array(len); let o = 0;
+    for (const a of parts) { out.set(a, o); o += a.length; }
+    return out;
+  }
+
+  // Apply all edits to a fresh copy of the original file and return the new PDF bytes.
+  async function build() {
+    const L = PDFLib, KEY = L.PDFName.of('Contents');
+    const pdf = await L.PDFDocument.load(orig, { updateMetadata: false, parseSpeed: Infinity });
+    const ctx = pdf.context, pgs = pdf.getPages(), own = $('plr-own').checked;
+    if (pgs.length !== total) throw new Error('pages');
+    const res = { font: 0, std: 0, patch: 0, fail: 0 }, by = new Map(), use = new Map(), stds = new Map();
+    for (const e of edits.values()) { if (!by.has(e.p)) by.set(e.p, []); by.get(e.p).push(e); }
+    const refsOf = pg => {
+      const raw = pg.node.get(KEY), top = raw instanceof L.PDFRef ? ctx.lookup(raw) : raw, list = [];
+      if (top instanceof L.PDFArray) for (let i = 0; i < top.size(); i++) { const el = top.get(i), isRef = el instanceof L.PDFRef; list.push({ ref: isRef ? el : null, obj: isRef ? ctx.lookup(el) : el }); }
+      else if (top) list.push({ ref: raw instanceof L.PDFRef ? raw : null, obj: top });
+      return list;
+    };
+    for (const pg of pgs) { try { for (const r of refsOf(pg)) if (r.ref) use.set(r.ref, (use.get(r.ref) || 0) + 1); } catch (e) {} }
+    const stdFont = async f => {
+      const n = String((f && f.name) || '').toLowerCase();
+      const b = !!(f && (f.bold || f.black)) || /bold|black|heavy|demi/.test(n), it = !!(f && f.italic) || /ital|obli/.test(n);
+      let fam = 'Helvetica';
+      if (/cour|mono|consol|typewriter/.test(n) || (f && f.fallbackName === 'monospace')) fam = 'Courier';
+      else if (!/sans|arial|helvet|gothic|grotesk/.test(n) && (/times|serif|roman|georgia|garamond|minion|palatino|cambria|book|century|cmr/.test(n) || (f && f.fallbackName === 'serif'))) fam = 'Times';
+      const name = fam === 'Times' ? 'Times-' + (b ? (it ? 'BoldItalic' : 'Bold') : it ? 'Italic' : 'Roman') : fam + (b || it ? '-' + (b ? 'Bold' : '') + (it ? 'Oblique' : '') : '');
+      if (!stds.has(name)) stds.set(name, await pdf.embedFont(name));
+      return stds.get(name);
+    };
+    const deg = r => L.degrees(Math.atan2(r.dy, r.dx) * 180 / Math.PI);
+    const col = c => L.rgb(Math.min(1, Math.max(0, c[0] / 255)), Math.min(1, Math.max(0, c[1] / 255)), Math.min(1, Math.max(0, c[2] / 255)));
+    for (const [p, list] of by) {
+      const page = pgs[p - 1], pd = await pageData(p);
+      let route = null;
+      try {
+        const refs = refsOf(page), parts = []; let len = 0;
+        for (const r of refs) { if (!(r.obj instanceof L.PDFRawStream)) throw new Error('stream'); const d = L.decodePDFRawStream(r.obj).decode(); parts.push(d); len += d.length + 1; }
+        const buf = new Uint8Array(len); let o = 0;
+        for (const d of parts) { buf.set(d, o); o += d.length; buf[o++] = 10; }
+        const toks = lex(buf);
+        if (toks.length === pd.shows.length) route = { refs, buf, toks };
+      } catch (e) { route = null; }
+      // Decide per letter: swap the code in place, remove and redraw in a standard font, or cover and redraw.
+      const plan = async rt => {
+        const plans = [], reps = new Map();
+        for (const e of list) {
+          const g = pd.glyphs[e.i];
+          if (!g) continue;
+          const r = g.r, tk = rt && r.si >= 0 ? rt.toks[r.si] : null, w = tk ? match(tk, pd.shows[r.si]) : 0;
+          const ent = w && own && !r.inv ? (fmaps.get(r.fname) || new Map()).get(e.ch) : null;
+          const pl = { e, g, m: 'font', cover: false, draw: false };
+          let ed = null;
+          if (ent && ent.code < (w === 1 ? 256 : 65536)) {
+            const ncw = ent.w * r.was + r.csd + (w === 1 && ent.code === 32 ? r.wsd : 0);
+            ed = { k: 1, code: ent.code, n: -(g.cw - ncw) * 500 / r.fs };
+          } else {
+            pl.font = await stdFont(r.font);
+            try { pl.nw = pl.font.widthOfTextAtSize(e.ch, r.sz); } catch (x) { pl.m = 'fail'; plans.push(pl); continue; }
+            pl.draw = true; pl.cover = !w || r.inv; pl.m = pl.cover ? 'patch' : 'std';
+            if (w) ed = { k: 0, n: -g.cw * 1000 / r.fs };
+          }
+          if (ed) { let m = reps.get(r.si); if (!m) reps.set(r.si, m = { tk, w, eds: new Map() }); m.eds.set(g.gi, ed); }
+          plans.push(pl);
+        }
+        return { plans, reps };
+      };
+      let pr = await plan(route);
+      if (pr.reps.size) {
+        try {
+          const reps = [];
+          for (const m of pr.reps.values()) reps.push({ s: m.tk.s, e: m.tk.e, t: rewrite(m.tk, m.w, m.eds) });
+          const ref = ctx.register(ctx.flateStream(splice(route.buf, reps)));
+          page.node.set(KEY, ctx.obj([ref]));
+          for (const r of route.refs) if (r.ref && use.get(r.ref) === 1) { try { ctx.delete(r.ref); } catch (e) {} }
+        } catch (e) { pr = await plan(null); }
+      }
+      for (const pl of pr.plans) {
+        res[pl.m]++;
+        if (!pl.cover) continue;
+        const g = pl.g, r = g.r, flip = r.dx * r.uy - r.dy * r.ux < 0, o = (flip ? r.asc : r.desc) * r.sz;
+        page.drawRectangle({ x: g.bx + r.ux * o, y: g.by + r.uy * o, width: g.sw, height: (r.asc - r.desc) * r.sz, rotate: deg(r), color: col(pl.e.bg || [255, 255, 255]) });
+      }
+      for (const pl of pr.plans) {
+        if (!pl.draw) continue;
+        const g = pl.g, r = g.r, off = (g.sw - pl.nw) / 2;
+        page.drawText(pl.e.ch, { x: g.bx + r.dx * off, y: g.by + r.dy * off, size: r.sz, font: pl.font, color: col(r.inv ? (pl.e.fg || [0, 0, 0]) : (r.fill || [0, 0, 0])), rotate: deg(r) });
+      }
+    }
+    return { bytes: await pdf.save({ updateFieldAppearances: false }), stats: res };
+  }
+
+  function refresh() {
+    if (!src) return;
+    const n = edits.size;
+    if (!n) { setStatus(glyphs.length ? HINT : 'No selectable text on this page. Scanned pages need OCR before letters can be picked.'); return; }
+    const parts = [];
+    if (stats) {
+      if (stats.font) parts.push(stats.font + " in the PDF's own font");
+      if (stats.std) parts.push(stats.std + ' redrawn in a standard font');
+      if (stats.patch) parts.push(stats.patch + ' covered and redrawn on top');
+      if (stats.fail) parts.push(stats.fail + ' skipped');
+    }
+    setStatus(n + (n === 1 ? ' letter changed' : ' letters changed') + (parts.length ? ': ' + parts.join(', ') : '') + '. Click a changed letter to restore it.');
+  }
+
+  function schedule() {
+    clearTimeout(buildT);
+    setStatus('Updating preview…');
+    buildT = setTimeout(run, 150);
+  }
+
+  // Rebuild the edited PDF and re-render the page from it, so the preview matches the download.
+  async function run() {
+    const seq = ++buildSeq;
+    try {
+      if (!edits.size) {
+        const old = view; view = null; stats = null;
+        await show();
+        if (old) old.destroy();
+        refresh();
+        return;
+      }
+      const r = await build();
+      if (seq !== buildSeq) return;
+      const doc = await pdfjsLib.getDocument(params(r.bytes)).promise;
+      if (seq !== buildSeq) { doc.destroy(); return; }
+      const old = view; view = doc; stats = r.stats;
+      await show();
+      if (old) old.destroy();
+      refresh();
+      setErr(stats.fail ? "Some letters were skipped: the PDF's font doesn't have that character, and the built-in fallback fonts only cover Latin text." : '');
+    } catch (e) {
+      if (seq === buildSeq) { refresh(); setErr("The preview couldn't be updated. Undo the last change and try again."); }
+    }
+  }
+
+  // Background pass over every page to learn which characters each embedded font contains.
+  async function scan(seq) {
+    const n = Math.min(total, 300);
+    for (let p = 1; p <= n; p++) {
+      if (seq !== loadSeq) return;
+      try { if (pages.has(p)) await pages.get(p); else await extract(p, false); } catch (e) {}
+      await new Promise(r => setTimeout(r, 0));
+    }
+    if (seq === loadSeq && edits.size) schedule();
+  }
+
+  async function loadFile(file) {
+    if (!file) return;
+    const seq = ++loadSeq;
+    setErr(''); setStatus('Opening PDF…');
+    try {
+      try { await libs(); } catch (e) { throw uiErr("The PDF libraries couldn't load. Check your connection and try again."); }
+      const buf = new Uint8Array(await file.arrayBuffer());
+      try { await PDFLib.PDFDocument.load(buf, { updateMetadata: false, parseSpeed: Infinity }); }
+      catch (e) { throw uiErr(/encrypt/i.test(String(e && e.message)) ? "This PDF is encrypted, so it can't be edited here. Save an unprotected copy and try again." : "That file couldn't be read as a PDF. Try another."); }
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      let doc;
+      try { doc = await pdfjsLib.getDocument(params(buf.slice())).promise; } catch (e) { throw uiErr("That file couldn't be opened. Try another."); }
+      if (seq !== loadSeq) { doc.destroy(); return; }
+      const old = [src, view];
+      clearTimeout(buildT); buildSeq++;
+      orig = buf; src = doc; view = null; total = doc.numPages; cur = 1; shown = 0;
+      edits = new Map(); pages = new Map(); fmaps = new Map(); fcache = new Map(); stats = null; glyphs = []; Q = new Float32Array(0); hover = -1;
+      fileName = file.name || 'document.pdf';
+      $('plr-name').textContent = fileName;
+      $('plr-empty').style.display = 'none';
+      for (const d of old) if (d) d.destroy();
+      scanP = scan(seq);
+      await show();
+      if (seq === loadSeq) refresh();
+    } catch (e) {
+      if (seq === loadSeq) { setStatus(src ? HINT : 'Edits run in your browser. Nothing is uploaded.'); setErr(e && e.ui ? e.message : "Something went wrong opening that file. Try another."); }
+    }
+  }
+
+  const pickCh = () => Array.from(chEl.value.replace(/\s/g, '')).pop() || '';
+  const fixCh = () => { chEl.value = pickCh(); chErr.textContent = ''; };
+  const at = ev => { const r = over.getBoundingClientRect(); return vp && r.width && r.height ? hit((ev.clientX - r.left) * vp.width / r.width, (ev.clientY - r.top) * vp.height / r.height) : -1; };
+
+  $('plr-open').addEventListener('click', () => $('plr-file').click());
+  $('plr-file').addEventListener('change', ev => { const f = ev.target.files && ev.target.files[0]; ev.target.value = ''; loadFile(f); });
+  stage.addEventListener('dragover', ev => ev.preventDefault());
+  stage.addEventListener('drop', ev => { ev.preventDefault(); const f = ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]; if (f) loadFile(f); });
+  chEl.addEventListener('input', ev => { if (!ev.isComposing) fixCh(); });
+  chEl.addEventListener('compositionend', fixCh);
+
+  over.addEventListener('mousemove', ev => { const h = at(ev); if (h !== hover) { hover = h; over.style.cursor = h >= 0 ? 'pointer' : 'default'; drawOver(); } });
+  over.addEventListener('mouseleave', () => { if (hover !== -1) { hover = -1; drawOver(); } });
+  over.addEventListener('click', ev => {
+    const i = at(ev);
+    if (i < 0 || !shown) return;
+    const key = shown + ':' + i, had = edits.get(key), ch = pickCh();
+    if (had && (!ch || had.ch === ch)) edits.delete(key);
+    else if (!ch) { chErr.textContent = 'Enter a replacement character first'; chEl.focus(); return; }
+    else { const s = had || sample(i); edits.set(key, { p: shown, i, ch, bg: s.bg, fg: s.fg }); }
+    setErr(''); drawOver(); schedule();
+  });
+
+  $('plr-prev').addEventListener('click', () => { if (src && cur > 1) { cur--; show().then(refresh); } });
+  $('plr-next').addEventListener('click', () => { if (src && cur < total) { cur++; show().then(refresh); } });
+  $('plr-zoom').addEventListener('input', ev => { zoom = (+ev.target.value || 100) / 100; $('plr-zv').textContent = Math.round(zoom * 100) + '%'; clearTimeout(viewT); viewT = setTimeout(show, 120); });
+  $('plr-own').addEventListener('change', () => { if (edits.size) schedule(); });
+  $('plr-reset').addEventListener('click', () => { if (!edits.size) return; edits.clear(); setErr(''); drawOver(); schedule(); });
+  window.addEventListener('resize', () => { clearTimeout(viewT); viewT = setTimeout(show, 200); });
+
+  $('plr-dl').addEventListener('click', async () => {
+    if (!src) { setErr('Choose a PDF first.'); return; }
+    if (!edits.size) { setErr('Nothing to download yet. Click a letter to change it first.'); return; }
+    setErr(''); setStatus('Preparing download…');
+    try {
+      await scanP;
+      const r = await build();
+      stats = r.stats;
+      const url = URL.createObjectURL(new Blob([r.bytes], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = fileName.replace(/\.pdf$/i, '') + '-edited.pdf'; a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+      refresh();
+    } catch (e) { refresh(); setErr("The edited PDF couldn't be created. Undo the last change and try again."); }
+  });
+})();
+</script>
+</body>
+</html>
