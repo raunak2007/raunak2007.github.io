@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Collision Course — Real-Time CMU Schedule Analyzer</title>
+  <style>
+    :root {
+      --bg: #fafaf9;
+      --surface: #ffffff;
+      --ink: #18181b;
+      --muted: #52525b;
+      --border: #e4e4e7;
+      --red: #dc2626;
+      --red-dark: #991b1b;
+      --red-soft: #fef2f2;
+      --green-soft: #f0fdf4;
+      --green-dark: #166534;
+      --blue-soft: #eff6ff;
+      --blue-dark: #1d4ed8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 20px 64px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      font-size: 16px;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1180px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    h1 { margin: 0; font-size: 2rem; letter-spacing: -0.02em; }
+    h1 span { color: var(--red); }
+    .sub { color: var(--muted); font-size: 0.94rem; margin: 2px 0 0; }
+
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    button {
+      font: inherit;
+      font-size: 0.86rem;
+      font-weight: 600;
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+    }
+    button.primary { background: var(--red); color: #fff; border-color: var(--red); }
+    button.primary:hover { background: var(--red-dark); }
+    button:hover:not(.primary) { background: #f4f4f5; }
+    button.chip { border-radius: 999px; font-size: 0.8rem; padding: 5px 10px; }
+    button.chip.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+    button.mini { font-size: 0.75rem; padding: 3px 8px; }
+    button.ghost { border: none; background: transparent; color: var(--muted); padding: 3px 7px; }
+    button.ghost:hover { color: var(--red); background: var(--red-soft); }
+
+    .controls {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+    .live-bar {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .section-label {
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    label { font-weight: 600; font-size: 0.88rem; }
+    input, textarea {
+      font: inherit;
+      font-size: 0.9rem;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(305px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 11px;
+      background: #fcfcfb;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+    .card-head input.code { font-weight: 700; width: 96px; font-size: 0.95rem; }
+    .status-pill {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #f4f4f5;
+      color: var(--muted);
+    }
+    .status-pill.live { background: var(--blue-soft); color: var(--blue-dark); }
+    .status-pill.ok { background: var(--green-soft); color: var(--green-dark); }
+    .status-pill.miss { background: #fffbeb; color: #92400e; }
+    .card input.url { width: 100%; font-size: 0.8rem; color: var(--muted); }
+    .card textarea {
+      width: 100%;
+      min-height: 52px;
+      font-size: 0.78rem;
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      resize: vertical;
+    }
+
+    .verdict {
+      background: var(--red-soft);
+      border-left: 6px solid var(--red);
+      padding: 14px 18px;
+      border-radius: 8px;
+      font-size: 1.12rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .delta {
+      background: #f4f4f5;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .not-found {
+      background: #fffbeb;
+      border: 1px solid #fcd34d;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+      gap: 9px;
+      margin-bottom: 18px;
+    }
+    .cell {
+      border-radius: 10px;
+      padding: 10px 11px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      transition: transform 0.1s ease;
+    }
+    .cell:hover { transform: translateY(-2px); }
+    .cell.collision { border: 3px solid var(--ink); }
+    .cell.selected { box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.35); }
+    .cell .wk { font-size: 0.8rem; font-weight: 700; }
+    .cell .sc { font-size: 1.4rem; font-weight: 800; margin: 2px 0; }
+    .cell .badge {
+      display: inline-block;
+      font-size: 0.66rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      background: var(--ink);
+      color: #fff;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 18px;
+      margin-bottom: 18px;
+    }
+    .panel h2 { margin: 0 0 10px; font-size: 1.1rem; }
+    .panel ul { margin: 0; padding-left: 20px; }
+    .avail-box { background: #f4f4f5; padding: 12px 14px; border-radius: 8px; margin-top: 10px; font-size: 0.94rem; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    th { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .kind {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      background: #f4f4f5;
+    }
+    .kind.exam, .kind.midterm, .kind.final { background: var(--red-soft); color: var(--red-dark); }
+    a { color: var(--red-dark); }
+    .sep { height: 1px; background: var(--border); margin: 12px 0; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Collision <span>Course</span></h1>
+      <p class="sub">CMU Exam &amp; Deadline Overlap Analyzer · Gemini 3.8 Flash + Offline Backup</p>
+    </div>
+    <div class="row">
+      <button onclick="pinBaseline()">Pin as Baseline</button>
+      <button onclick="exportJSON()">Export events.json</button>
+      <button onclick="exportICS()">Export .ics</button>
+    </div>
+  </header>
+
+  <section class="controls">
+    <div class="live-bar">
+      <div class="row">
+        <label for="apiKey">Gemini API Key (Real-Time Fetch):</label>
+        <input id="apiKey" type="password" placeholder="AIza... (optional · uses gemini-3.8-flash)" style="width:265px" />
+        <label style="display:flex;align-items:center;gap:5px;">
+          <input id="alwaysLive" type="checkbox" /> Always fetch live
+        </label>
+        <button class="primary" onclick="fetchAllLive()">Fetch All Live Now</button>
+      </div>
+      <span style="font-size:0.78rem;color:var(--muted)">
+        Local server tip: <code>python3 -m http.server 8080</code>
+      </span>
+    </div>
+
+    <div class="section-label">1. Demo Scenarios (1-Click)</div>
+    <div class="row" style="margin-bottom:10px;">
+      <button class="primary" onclick="loadPreset(['15-210','18-330','36-218'], true)">My Fall (210 + 330 + 218)</button>
+      <button onclick="loadPreset(['15-210','18-330','15-259'])">Swap 36-218 → 15-259</button>
+      <button onclick="loadPreset(['15-210','18-330','36-218','15-259'])">4-Course Overload</button>
+      <button onclick="loadPreset(['15-213','15-330','15-418'])">Systems &amp; Parallel (213+330+418)</button>
+      <button onclick="loadPreset(['15-150','15-213','15-259'])">Sophomore Core (150+213+259)</button>
+      <button onclick="loadPreset(['15-210','15-451','15-251'])">Missing Course Test (w/ 15-251)</button>
+    </div>
+
+    <div class="section-label">2. Toggle CMU Courses</div>
+    <div id="courseChips" class="row" style="margin-bottom:10px;"></div>
+
+    <div class="sep"></div>
+
+    <div class="row">
+      <label for="sem">Semester:</label>
+      <input id="sem" value="Fall 2026" style="width:115px" onchange="runAll()" />
+      <button onclick="addCard('')">+ Add Any Course</button>
+      <button onclick="addMessyExample()">+ Messy Syllabus Example</button>
+      <label style="display:flex;align-items:center;gap:5px;margin-left:6px;">
+        <input id="examsOnly" type="checkbox" onchange="analyze()" /> Exams &amp; Quizzes Only
+      </label>
+      <button class="primary" onclick="runAll(true)">Find Collisions</button>
+    </div>
+
+    <div id="cards" class="cards"></div>
+  </section>
+
+  <div id="verdict" class="verdict"></div>
+  <div id="delta" class="delta"></div>
+  <div id="notFoundBox" class="not-found"></div>
+  <div id="strip" class="strip"></div>
+
+  <div id="weekDetail" class="panel" style="display:none"></div>
+
+  <div class="panel">
+    <h2>Availability Check &amp; Email Drafter</h2>
+    <div class="row">
+      <label for="avStart">From:</label>
+      <input id="avStart" type="date" value="2026-11-30" onchange="checkAvail()" />
+      <label for="avEnd">To:</label>
+      <input id="avEnd" type="date" value="2026-12-04" onchange="checkAvail()" />
+      <button onclick="setRange('2026-11-30','2026-12-04')">Nov 30–Dec 4</button>
+      <button onclick="setRange('2026-11-02','2026-11-06')">Nov 2–Nov 6</button>
+      <button onclick="setRange('2026-09-28','2026-10-02')">Sep 28–Oct 2</button>
+      <button onclick="copyDraft()">Copy Email</button>
+    </div>
+    <div id="availOut" class="avail-box"></div>
+  </div>
+
+  <div class="panel">
+    <h2>All Extracted Events (<span id="eventCount">0</span>)</h2>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Course</th><th>Kind</th><th>Title</th><th>Source</th></tr>
+      </thead>
+      <tbody id="itemsBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const CATALOG = {
+  "15-210": {
+    label: "15-210 (Parallel Alg)",
+    url: "https://www.cs.cmu.edu/~15210-f26/schedule.html",
+    events: [
+      { kind: "due", title: "RefreshLab due", date: "2026-08-27" },
+      { kind: "due", title: "MCSSLab due", date: "2026-08-31" },
+      { kind: "due", title: "ParenLab due", date: "2026-09-08" },
+      { kind: "due", title: "SkylineLab due", date: "2026-09-14" },
+      { kind: "quiz", title: "Quiz 1", date: "2026-09-18" },
+      { kind: "due", title: "WaffleLab due", date: "2026-09-21" },
+      { kind: "due", title: "DPLab due", date: "2026-09-28" },
+      { kind: "midterm", title: "Midterm I", date: "2026-10-02" },
+      { kind: "due", title: "RandomLab due", date: "2026-10-21" },
+      { kind: "quiz", title: "Quiz 2", date: "2026-10-23" },
+      { kind: "due", title: "FingerLab due", date: "2026-10-26" },
+      { kind: "due", title: "RangeLab due", date: "2026-11-02" },
+      { kind: "midterm", title: "Midterm II", date: "2026-11-06" },
+      { kind: "due", title: "ShortLab due", date: "2026-11-16" },
+      { kind: "quiz", title: "Quiz 3", date: "2026-11-20" },
+      { kind: "due", title: "PowerLab due", date: "2026-11-23" },
+      { kind: "due", title: "SandwichLab due", date: "2026-12-02" }
+    ]
+  },
+  "18-330": {
+    label: "18-330 (Security)",
+    url: "https://www.andrew.cmu.edu/course/18-330/2026f/schedule/",
+    events: [
+      { kind: "exam", title: "Exam 1", date: "2026-09-30" },
+      { kind: "exam", title: "Exam 2", date: "2026-11-04" },
+      { kind: "exam", title: "Exam 3", date: "2026-12-04" }
+    ]
+  },
+  "36-218": {
+    label: "36-218 (Prob)",
+    url: "",
+    defaultText: "Exam 1: October 1, 2026\nExam 2: November 5, 2026\nExam 3: December 3, 2026",
+    events: [
+      { kind: "exam", title: "Exam 1", date: "2026-10-01" },
+      { kind: "exam", title: "Exam 2", date: "2026-11-05" },
+      { kind: "exam", title: "Exam 3", date: "2026-12-03" }
+    ]
+  },
+  "15-259": {
+    label: "15-259 (PnC)",
+    url: "https://www.cs.cmu.edu/~harchol/PnC/class.html",
+    events: [
+      { kind: "due", title: "HW 1 due", date: "2026-08-28" },
+      { kind: "due", title: "HW 2 due", date: "2026-09-04" },
+      { kind: "due", title: "HW 3 due", date: "2026-09-11" },
+      { kind: "exam", title: "Exam 1", date: "2026-09-14" },
+      { kind: "due", title: "HW 4 due", date: "2026-09-18" },
+      { kind: "due", title: "HW 5 due", date: "2026-09-25" },
+      { kind: "due", title: "HW 6 due", date: "2026-10-02" },
+      { kind: "exam", title: "Exam 2", date: "2026-10-06" },
+      { kind: "due", title: "HW 7 due", date: "2026-10-09" },
+      { kind: "due", title: "HW 8 due", date: "2026-10-23" },
+      { kind: "due", title: "HW 9 due", date: "2026-10-30" },
+      { kind: "exam", title: "Exam 3", date: "2026-11-02" },
+      { kind: "due", title: "HW 10 due", date: "2026-11-06" },
+      { kind: "due", title: "HW 11 due", date: "2026-11-13" },
+      { kind: "due", title: "HW 12 due", date: "2026-11-20" },
+      { kind: "exam", title: "Exam 4", date: "2026-11-24" },
+      { kind: "due", title: "HW 13 due", date: "2026-12-04" },
+      { kind: "final", title: "Final Exam", date: "2026-12-07" }
+    ]
+  },
+  "15-213": {
+    label: "15-213 (Systems)",
+    url: "https://www.cs.cmu.edu/~213/schedule.html",
+    events: [
+      { kind: "due", title: "L1 (datalab) due", date: "2026-09-08" },
+      { kind: "due", title: "L2 (bomblab) due", date: "2026-09-15" },
+      { kind: "due", title: "L3 (attacklab) due", date: "2026-09-24" },
+      { kind: "due", title: "L4 (cachelab) due", date: "2026-10-08" },
+      { kind: "midterm", title: "In-class Midterm", date: "2026-10-20" },
+      { kind: "due", title: "L5a (malloc checkpoint) due", date: "2026-10-27" },
+      { kind: "due", title: "L5b (malloc final) due", date: "2026-11-03" },
+      { kind: "final", title: "Final Exam", date: "2026-12-07" }
+    ]
+  },
+  "15-418": {
+    label: "15-418 (Parallel Arch)",
+    url: "https://www.cs.cmu.edu/~418/exams.html",
+    events: [
+      { kind: "due", title: "Assignment 1 due", date: "2026-09-09" },
+      { kind: "due", title: "Assignment 2 due", date: "2026-09-23" },
+      { kind: "exam", title: "Exam 1", date: "2026-09-25" },
+      { kind: "due", title: "Assignment 3 due", date: "2026-10-07" },
+      { kind: "exam", title: "Exam 2", date: "2026-11-02" }
+    ]
+  },
+  "15-150": {
+    label: "15-150 (FP)",
+    url: "",
+    defaultText: "Midterm 1: Sep 24\nMidterm 2: Nov 5\nPlus 10 weekly HW deadlines",
+    events: [
+      { kind: "due", title: "Basics HW due", date: "2026-09-01" },
+      { kind: "due", title: "Induction HW due", date: "2026-09-08" },
+      { kind: "due", title: "Datatypes HW due", date: "2026-09-15" },
+      { kind: "midterm", title: "Midterm 1", date: "2026-09-24" },
+      { kind: "due", title: "Polysort HW due", date: "2026-09-29" },
+      { kind: "due", title: "HOF HW Part I due", date: "2026-10-06" },
+      { kind: "due", title: "HOF HW Part II due", date: "2026-10-20" },
+      { kind: "due", title: "Exceptions/Regex HW due", date: "2026-10-27" },
+      { kind: "midterm", title: "Midterm 2", date: "2026-11-05" },
+      { kind: "due", title: "Modules HW due", date: "2026-11-10" },
+      { kind: "due", title: "Sequences HW due", date: "2026-11-17" },
+      { kind: "due", title: "Lazy/Imperative HW due", date: "2026-12-01" }
+    ]
+  },
+  "15-451": {
+    label: "15-451 (Algorithms)",
+    url: "https://www.cs.cmu.edu/~15451-f26/",
+    events: [
+      { kind: "midterm", title: "Midterm 1 (7:00 PM)", date: "2026-09-16" },
+      { kind: "midterm", title: "Midterm 2 (7:00 PM)", date: "2026-10-07" },
+      { kind: "midterm", title: "Midterm 3 (7:00 PM)", date: "2026-11-11" }
+    ]
+  }
+};
+const ALIASES = { "15-330": "18-330" };
+const CHIP_CODES = ["15-210", "18-330", "36-218", "15-259", "15-213", "15-418", "15-150", "15-451", "15-251"];
+const WEIGHT = { exam: 3, midterm: 3, final: 3, quiz: 2, due: 1 };
+const ASSESS = new Set(["exam", "midterm", "final", "quiz"]);
+const MONTHS = {
+  jan: 1, january: 1, feb: 2, february: 2, mar: 3, march: 3, apr: 4, april: 4,
+  may: 5, jun: 6, june: 6, jul: 7, july: 7, aug: 8, august: 8, sep: 9, sept: 9,
+  september: 9, oct: 10, october: 10, nov: 11, november: 11, dec: 12, december: 12
+};
+
+let courseCards = [];
+let liveCache = new Map();
+let currentEvents = [];
+let currentWeeks = [];
+let baselineSummary = null;
+let baselineLabel = "";
+let lastDraftText = "";
+
+function parseUTC(iso) { const [y, m, d] = iso.split("-").map(Number); return new Date(Date.UTC(y, m - 1, d)); }
+function fmtUTC(dt) { return dt.toISOString().slice(0, 10); }
+function fmtShort(dt) { return dt.toLocaleDateString("en-US", { timeZone: "UTC", month: "short", day: "numeric" }); }
+function fmtLong(dt) { return dt.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "long", month: "long", day: "numeric" }); }
+function mondayOf(dt) {
+  const day = dt.getUTCDay();
+  return new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate() + (day === 0 ? -6 : 1 - day)));
+}
+function addDays(dt, n) { return new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate() + n)); }
+function semesterYear() {
+  const m = document.getElementById("sem").value.match(/\b(20\d{2})\b/);
+  return m ? Number(m[1]) : 2026;
+}
+function escapeHtml(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+}
+
+function parsePastedText(course, text, fallbackYear) {
+  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+  const out = [];
+  for (const line of lines) {
+    if (line.includes("|")) {
+      const p = line.split("|").map(s => s.trim());
+      const [k, t, d] = p.length >= 4 ? [p[1], p[2], p[3]] : [p[0], p[1], p[2]];
+      if (/^\d{4}-\d{2}-\d{2}$/.test(d)) {
+        out.push({ course, kind: (k || "due").toLowerCase(), title: t || k, date: d, url: "pasted" });
+        continue;
+      }
+    }
+    const low = line.toLowerCase();
+    let kind = "due";
+    if (/\bfinal\b/.test(low)) kind = "final";
+    else if (/\bmidterm\b/.test(low)) kind = "midterm";
+    else if (/\bquiz\b/.test(low)) kind = "quiz";
+    else if (/\bexam\b|\btest\b/.test(low)) kind = "exam";
+
+    const datesFound = [];
+    for (const m of line.matchAll(/\b(20\d{2})-(\d{2})-(\d{2})\b/g)) datesFound.push(`${m[1]}-${m[2]}-${m[3]}`);
+    for (const m of line.matchAll(/\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})(?:st|nd|rd|th)?(?:,?\s*(20\d{2}))?\b/gi)) {
+      const mon = String(MONTHS[m[1].toLowerCase()]).padStart(2, "0");
+      const day = String(Number(m[2])).padStart(2, "0");
+      datesFound.push(`${m[3] ? Number(m[3]) : fallbackYear}-${mon}-${day}`);
+    }
+    for (const m of line.matchAll(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g)) {
+      const mon = String(Number(m[1])).padStart(2, "0");
+      const day = String(Number(m[2])).padStart(2, "0");
+      const yr = m[3] ? (m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])) : fallbackYear;
+      datesFound.push(`${yr}-${mon}-${day}`);
+    }
+    const titleBase = line
+      .replace(/\b20\d{2}-\d{2}-\d{2}\b/g, "")
+      .replace(/\b(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t|tember)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2}(?:st|nd|rd|th)?(?:,?\s*20\d{2})?\b/gi, "")
+      .replace(/\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?\b/g, "")
+      .replace(/[:,-]+\s*$/g, "")
+      .trim() || kind;
+    datesFound.forEach((d, idx) => {
+      out.push({ course, kind, title: datesFound.length > 1 ? `${titleBase} ${idx + 1}` : titleBase, date: d, url: "pasted" });
+    });
+  }
+  return out;
+}
+
+function makeCardFromCode(code) {
+  const key = ALIASES[code] || code;
+  const preset = CATALOG[key];
+  return {
+    code,
+    url: preset?.url || "",
+    text: preset?.defaultText || "",
+    autoFilled: Boolean(preset?.defaultText)
+  };
+}
+
+function renderChips() {
+  const active = new Set(courseCards.map(c => c.code.trim()));
+  const box = document.getElementById("courseChips");
+  box.innerHTML = "";
+  CHIP_CODES.forEach(code => {
+    const btn = document.createElement("button");
+    const isAct = active.has(code);
+    btn.className = `chip ${isAct ? "active" : ""}`;
+    const label = CATALOG[code]?.label || `${code} (Missing Test)`;
+    btn.textContent = `${isAct ? "✓ " : "+ "}${label}`;
+    btn.onclick = () => toggleCourse(code);
+    box.appendChild(btn);
+  });
+}
+
+function renderCards() {
+  renderChips();
+  const container = document.getElementById("cards");
+  container.innerHTML = "";
+  courseCards.forEach((card, idx) => {
+    const resolved = getCardEvents(card);
+    let statusClass = "miss", statusText = "not found";
+    if (!card.code.trim()) { statusClass = ""; statusText = "empty"; }
+    else if (resolved.source === "live") { statusClass = "live"; statusText = `LIVE · ${resolved.items.length}`; }
+    else if (resolved.items.length) { statusClass = "ok"; statusText = `${resolved.source.toUpperCase()} · ${resolved.items.length}`; }
+
+    const el = document.createElement("div");
+    el.className = "card";
+    el.innerHTML = `
+      <div class="card-head">
+        <div class="row" style="gap:5px;">
+          <input class="code" value="${escapeHtml(card.code)}" placeholder="e.g. 10-301" />
+          <span class="status-pill ${statusClass}">${statusText}</span>
+        </div>
+        <div class="row" style="gap:4px;">
+          <button class="mini" title="Fetch live via Gemini 3.8 Flash">↻ Live</button>
+          <button class="ghost" title="Remove course">×</button>
+        </div>
+      </div>
+      <input class="url" value="${escapeHtml(card.url)}" placeholder="Optional schedule URL" />
+      <textarea placeholder="Paste syllabus dates (e.g. Midterm Oct 14, Project due 11/20)">${escapeHtml(card.text)}</textarea>
+    `;
+
+    el.querySelector("input.code").oninput = (e) => {
+      const nextCode = e.target.value.trim();
+      card.code = nextCode;
+      const nextKey = ALIASES[nextCode] || nextCode;
+      if (CATALOG[nextKey]) {
+        card.url = CATALOG[nextKey].url || "";
+        if (card.autoFilled || !card.text.trim()) {
+          card.text = CATALOG[nextKey].defaultText || "";
+          card.autoFilled = Boolean(CATALOG[nextKey].defaultText);
+        }
+        renderCards();
+      } else if (card.autoFilled) {
+        card.text = ""; card.url = ""; card.autoFilled = false;
+        renderCards();
+      } else {
+        renderChips();
+      }
+      runAll();
+    };
+    el.querySelector("input.url").oninput = (e) => { card.url = e.target.value.trim(); };
+    el.querySelector("textarea").oninput = (e) => { card.text = e.target.value; card.autoFilled = false; runAll(); };
+    el.querySelector("button.mini").onclick = () => refreshOneLive(idx);
+    el.querySelector("button.ghost").onclick = () => { courseCards.splice(idx, 1); renderCards(); runAll(); };
+    container.appendChild(el);
+  });
+}
+
+function getCardEvents(card) {
+  const code = card.code.trim();
+  if (!code) return { items: [], missing: false, source: "none" };
+  const yr = semesterYear();
+  const alwaysLive = document.getElementById("alwaysLive").checked;
+
+  if (card.text.trim() && !card.autoFilled) {
+    const parsed = parsePastedText(code, card.text, yr);
+    return { items: parsed, missing: parsed.length === 0, source: "pasted" };
+  }
+  if (liveCache.has(code)) {
+    const cached = liveCache.get(code);
+    if (alwaysLive || !(CATALOG[ALIASES[code] || code])) {
+      return { items: cached, missing: cached.length === 0, source: "live" };
+    }
+  }
+  if (card.text.trim()) {
+    const parsed = parsePastedText(code, card.text, yr);
+    return { items: parsed, missing: parsed.length === 0, source: "pasted" };
+  }
+  const key = ALIASES[code] || code;
+  if (CATALOG[key]) {
+    return {
+      items: CATALOG[key].events.map(e => ({ ...e, course: code, url: CATALOG[key].url || "pasted" })),
+      missing: false,
+      source: CATALOG[key].url ? "cached" : "pasted"
+    };
+  }
+  return { items: [], missing: true, source: "none" };
+}
+
+function extractInteractionText(data) {
+  if (Array.isArray(data?.steps)) {
+    const texts = [];
+    for (const s of data.steps) {
+      if (s.type === "model_output" && Array.isArray(s.content)) {
+        for (const c of s.content) {
+          if (c.text) texts.push(c.text);
+        }
+      }
+    }
+    if (texts.length) return texts.join("\n");
+  }
+  if (Array.isArray(data?.outputs)) {
+    const texts = data.outputs.filter(o => o.text).map(o => o.text);
+    if (texts.length) return texts.join("\n");
+  }
+  return "";
+}
+
+async function fetchLiveFromGemini(card) {
+  const apiKey = document.getElementById("apiKey").value.trim();
+  if (!apiKey) return;
+  const sem = document.getElementById("sem").value.trim() || "Fall 2026";
+  const code = card.code.trim();
+  const prompt = card.url
+    ? `Read ${card.url} for CMU ${code} (${sem}). Extract every dated exam, midterm, final, quiz, and homework/lab/project due date. If year is omitted, take it from ${sem}. Never guess dates. Return ONLY a JSON array of objects with keys: course, kind (exam|midterm|final|quiz|due), title, date (YYYY-MM-DD), source_url.`
+    : `Search Google for CMU ${code} ${sem} official schedule. Check semester/year on the page; reject pages older than 2025. Extract every dated exam, midterm, final, quiz, and due date. Return ONLY a JSON array of objects with keys: course, kind (exam|midterm|final|quiz|due), title, date (YYYY-MM-DD), source_url. If no valid page is found, return [].`;
+
+  let rawText = "";
+  try {
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        tools: [{ url_context: {} }, { google_search: {} }]
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
+  } catch (e) {
+    console.warn(`generateContent fallback for ${code}:`, e.message);
+    const res2 = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+      body: JSON.stringify({
+        model: "gemini-3.8-flash",
+        input: prompt,
+        tools: [{ type: "url_context" }, { type: "google_search" }],
+        store: false
+      })
+    });
+    const data2 = await res2.json();
+    if (!res2.ok) throw new Error(data2?.error?.message || `HTTP ${res2.status}`);
+    rawText = extractInteractionText(data2);
+  }
+
+  const match = rawText.match(/\[[\s\S]*\]/);
+  if (!match) return;
+  const parsed = JSON.parse(match[0]).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x.date));
+  if (parsed.length) {
+    liveCache.set(code, parsed.map(x => ({
+      course: code,
+      kind: (x.kind || "due").toLowerCase(),
+      title: x.title,
+      date: x.date,
+      url: x.source_url || card.url || ""
+    })));
+  }
+}
+
+async function refreshOneLive(idx) {
+  const card = courseCards[idx];
+  if (!card?.code.trim()) return;
+  document.getElementById("verdict").textContent = `Checking ${card.code}...`;
+  try {
+    await fetchLiveFromGemini(card);
+    document.getElementById("alwaysLive").checked = true;
+  } catch (err) {
+    console.warn(`Silent fallback for ${card.code}:`, err.message);
+  }
+  renderCards();
+  runAll(false);
+}
+
+async function fetchAllLive() {
+  if (!document.getElementById("apiKey").value.trim()) {
+    runAll(false);
+    return;
+  }
+  document.getElementById("alwaysLive").checked = true;
+  await runAll(true);
+}
+
+async function runAll(allowLiveFetch = false) {
+  const apiKey = document.getElementById("apiKey").value.trim();
+  const alwaysLive = document.getElementById("alwaysLive").checked;
+  if (allowLiveFetch && apiKey) {
+    document.getElementById("verdict").textContent = "Fetching live schedules via Gemini 3.8 Flash...";
+    for (const card of courseCards) {
+      const code = card.code.trim();
+      const key = ALIASES[code] || code;
+      const hasPasted = Boolean(card.text.trim());
+      const needsFetch = alwaysLive ? !hasPasted : (!hasPasted && !CATALOG[key] && !liveCache.has(code));
+      if (code && needsFetch) {
+        try { await fetchLiveFromGemini(card); }
+        catch (err) { console.warn(`Silent fallback for ${code}:`, err.message); }
+      }
+    }
+    renderCards();
+  }
+
+  const all = [], missing = [];
+  for (const card of courseCards) {
+    const code = card.code.trim();
+    if (!code) continue;
+    const { items, missing: isMiss } = getCardEvents(card);
+    if (isMiss) missing.push(code);
+    all.push(...items);
+  }
+  currentEvents = all.sort((a, b) => a.date.localeCompare(b.date));
+
+  const nf = document.getElementById("notFoundBox");
+  if (missing.length) {
+    nf.style.display = "block";
+    nf.textContent = `Not found (year < 2025 or no readable dates): ${missing.join(", ")} — paste dates into that card to include it.`;
+  } else {
+    nf.style.display = "none";
+  }
+  analyze();
+}
+
+function computeSummary(events) {
+  if (!events.length) return null;
+  const firstMon = mondayOf(parseUTC(events[0].date));
+  const lastMon = mondayOf(parseUTC(events[events.length - 1].date));
+  const weekMap = new Map();
+  for (let cur = firstMon; cur <= lastMon; cur = addDays(cur, 7)) {
+    const key = fmtUTC(cur);
+    weekMap.set(key, { start: key, dt: cur, items: [], score: 0, assessCourses: new Set(), collision: false });
+  }
+  for (const ev of events) {
+    const key = fmtUTC(mondayOf(parseUTC(ev.date)));
+    const w = weekMap.get(key);
+    w.items.push(ev);
+    w.score += WEIGHT[ev.kind] ?? 1;
+    if (ASSESS.has(ev.kind)) w.assessCourses.add(ev.course);
+  }
+  const weeks = [...weekMap.values()].map(w => ({ ...w, collision: w.assessCourses.size >= 2 || w.score >= 6 }));
+  const maxScore = Math.max(...weeks.map(w => w.score));
+  const worst = weeks.filter(w => w.score === maxScore).map(w => fmtShort(w.dt));
+  const exams = events.filter(e => ASSESS.has(e.kind));
+  let bestSpan = Infinity, bestRuns = [];
+  for (let i = 0; i + 2 < exams.length; i++) {
+    const d1 = parseUTC(exams[i].date), d3 = parseUTC(exams[i + 2].date);
+    const span = Math.round((d3 - d1) / 86400000) + 1;
+    const label = `${fmtShort(d1)}–${fmtShort(d3)} (${span} days)`;
+    if (span < bestSpan) { bestSpan = span; bestRuns = [label]; }
+    else if (span === bestSpan && !bestRuns.includes(label)) bestRuns.push(label);
+  }
+  return { weeks, maxScore, worst, bestSpan, bestRuns };
+}
+
+function analyze() {
+  const examsOnly = document.getElementById("examsOnly").checked;
+  const activeEvents = examsOnly ? currentEvents.filter(e => ASSESS.has(e.kind)) : currentEvents;
+  const strip = document.getElementById("strip");
+  const detail = document.getElementById("weekDetail");
+  const summary = computeSummary(activeEvents);
+
+  if (!summary) {
+    document.getElementById("verdict").textContent = "No dated events match the current filter.";
+    strip.innerHTML = "";
+    detail.style.display = "none";
+    document.getElementById("itemsBody").innerHTML = "";
+    document.getElementById("eventCount").textContent = "0";
+    checkAvail();
+    return;
+  }
+
+  currentWeeks = summary.weeks;
+  document.getElementById("verdict").textContent =
+    `Worst week(s): ${summary.worst.join(" & ")} (score ${summary.maxScore}) · Tightest run of 3+ exams/quizzes: ${summary.bestRuns.length ? summary.bestRuns.join(" & ") : "none"}`;
+
+  const deltaBox = document.getElementById("delta");
+  const curLabel = courseCards.map(c => c.code.trim()).filter(Boolean).join(", ");
+  if (baselineSummary && curLabel !== baselineLabel && !examsOnly) {
+    const baseByWk = new Map(baselineSummary.weeks.map(w => [w.start, w.score]));
+    const curByWk = new Map(currentWeeks.map(w => [w.start, w.score]));
+    const allWks = [...new Set([...baseByWk.keys(), ...curByWk.keys()])].sort();
+    const diffs = [];
+    for (const wk of allWks) {
+      const b = baseByWk.get(wk) ?? 0, c = curByWk.get(wk) ?? 0;
+      if (b !== c && (b >= 6 || c >= 6)) diffs.push(`${fmtShort(parseUTC(wk))}: ${b} → ${c}`);
+    }
+    const spanDiff = baselineSummary.bestSpan !== summary.bestSpan && isFinite(summary.bestSpan)
+      ? ` · Tightest run: ${baselineSummary.bestSpan}d → ${summary.bestSpan}d` : "";
+    deltaBox.style.display = "block";
+    deltaBox.innerHTML = `<strong>vs. Baseline (${escapeHtml(baselineLabel)}):</strong> ${diffs.length ? diffs.join(" · ") : "No change in collision weeks"}${spanDiff}`;
+  } else {
+    deltaBox.style.display = "none";
+  }
+
+  strip.innerHTML = "";
+  currentWeeks.forEach((w, idx) => {
+    const ratio = summary.maxScore ? w.score / summary.maxScore : 0;
+    const bg = w.score === 0 ? "#ffffff" : `rgba(220, 38, 38, ${(0.08 + ratio * 0.34).toFixed(2)})`;
+    const div = document.createElement("div");
+    div.className = `cell ${w.collision ? "collision" : ""}`;
+    div.style.background = bg;
+    div.innerHTML = `
+      <div class="wk">Wk of ${fmtShort(w.dt)}</div>
+      <div class="sc">${w.score}</div>
+      ${w.collision ? `<span class="badge">Collision</span>` : `<span style="font-size:0.76rem;color:#52525b">${w.items.length} item(s)</span>`}
+    `;
+    div.onclick = () => showWeek(idx, div);
+    strip.appendChild(div);
+  });
+
+  const firstColIdx = currentWeeks.findIndex(w => w.collision);
+  if (firstColIdx >= 0) showWeek(firstColIdx, strip.children[firstColIdx]);
+  else detail.style.display = "none";
+
+  document.getElementById("eventCount").textContent = String(activeEvents.length);
+  document.getElementById("itemsBody").innerHTML = activeEvents.map(e => `
+    <tr>
+      <td>${e.date}</td>
+      <td><strong>${escapeHtml(e.course)}</strong></td>
+      <td><span class="kind ${e.kind}">${e.kind}</span></td>
+      <td>${escapeHtml(e.title)}</td>
+      <td>${e.url.startsWith("http") ? `<a href="${escapeHtml(e.url)}" target="_blank">schedule</a>` : "pasted text"}</td>
+    </tr>
+  `).join("");
+
+  checkAvail();
+}
+
+function showWeek(idx, el) {
+  document.querySelectorAll(".cell.selected").forEach(c => c.classList.remove("selected"));
+  if (el) el.classList.add("selected");
+  const w = currentWeeks[idx];
+  const box = document.getElementById("weekDetail");
+  box.style.display = "block";
+  box.innerHTML = `
+    <h2>Week of ${fmtShort(w.dt)} — Score ${w.score} ${w.collision ? "(Collision)" : ""}</h2>
+    ${w.items.length ? `<ul>${w.items.map(i => `<li><strong>${fmtShort(parseUTC(i.date))}</strong>: ${escapeHtml(i.course)} — ${escapeHtml(i.title)} (${i.kind}, +${WEIGHT[i.kind] ?? 1})</li>`).join("")}</ul>` : "<p>No deadlines or exams this week.</p>"}
+  `;
+}
+
+function setRange(s, e) {
+  document.getElementById("avStart").value = s;
+  document.getElementById("avEnd").value = e;
+  checkAvail();
+}
+
+function checkAvail() {
+  const s = document.getElementById("avStart").value, e = document.getElementById("avEnd").value;
+  if (!s || !e) return;
+  const assessDates = new Set(currentEvents.filter(ev => ASSESS.has(ev.kind)).map(ev => ev.date));
+  const open = [];
+  for (let cur = parseUTC(s); cur <= parseUTC(e); cur = addDays(cur, 1)) {
+    const dow = cur.getUTCDay();
+    if (dow === 0 || dow === 6) continue;
+    if (!assessDates.has(fmtUTC(cur)) && !assessDates.has(fmtUTC(addDays(cur, 1)))) open.push(fmtLong(cur));
+  }
+  if (open.length) {
+    lastDraftText = `Thanks for reaching out! Looking at my exam schedule for that week, I'm available on ${open.join(", ")}. Please let me know what time works best for you.`;
+    document.getElementById("availOut").innerHTML = `<strong>Open weekdays:</strong> ${open.join(", ")}.<br><br><em>Draft reply:</em> "${lastDraftText}"`;
+  } else {
+    lastDraftText = "";
+    document.getElementById("availOut").textContent = "No open weekdays in that range without an exam/quiz that day or the next.";
+  }
+}
+
+function copyDraft() {
+  if (lastDraftText && navigator.clipboard) navigator.clipboard.writeText(lastDraftText);
+}
+
+function addCard(code = "") {
+  courseCards.push(makeCardFromCode(code));
+  renderCards();
+  runAll();
+}
+
+function addMessyExample() {
+  courseCards.push({
+    code: "17-214",
+    url: "",
+    text: "Quiz 1 on September 17\nMidterm exam Oct 1\nFinal project due December 3",
+    autoFilled: false
+  });
+  renderCards();
+  runAll();
+}
+
+function toggleCourse(code) {
+  const idx = courseCards.findIndex(c => c.code.trim() === code);
+  if (idx >= 0) courseCards.splice(idx, 1);
+  else courseCards.push(makeCardFromCode(code));
+  renderCards();
+  runAll();
+}
+
+function pinBaseline() {
+  baselineLabel = courseCards.map(c => c.code.trim()).filter(Boolean).join(", ");
+  baselineSummary = computeSummary(currentEvents);
+  analyze();
+}
+
+function loadPreset(codes, setAsBaseline = false) {
+  courseCards = codes.map(makeCardFromCode);
+  renderCards();
+  runAll();
+  if (setAsBaseline) pinBaseline();
+}
+
+function downloadFile(name, content, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([content], { type }));
+  a.download = name;
+  a.click();
+}
+function exportJSON() { downloadFile("events.json", JSON.stringify(currentEvents, null, 2), "application/json"); }
+function exportICS() {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Collision Course//CMU//EN"];
+  currentEvents.forEach((e, i) => {
+    const start = e.date.replace(/-/g, ""), end = fmtUTC(addDays(parseUTC(e.date), 1)).replace(/-/g, "");
+    lines.push("BEGIN:VEVENT", `UID:cc-${i}-${start}@cmu`, `DTSTART;VALUE=DATE:${start}`, `DTEND;VALUE=DATE:${end}`, `SUMMARY:${e.course} - ${e.title}`, "END:VEVENT");
+  });
+  lines.push("END:VCALENDAR");
+  downloadFile("collision-course.ics", lines.join("\r\n"), "text/calendar");
+}
+
+loadPreset(["15-210", "18-330", "36-218"], true);
+</script>
+</body>
+</html>
