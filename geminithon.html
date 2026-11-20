@@ -162,6 +162,16 @@
       font-size: 0.9rem;
       display: none;
     }
+    .api-err {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: var(--red-dark);
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin-bottom: 14px;
+      font-size: 0.88rem;
+      display: none;
+    }
 
     .strip {
       display: grid;
@@ -225,7 +235,7 @@
   <header>
     <div>
       <h1>Collision <span>Course</span></h1>
-      <p class="sub">CMU Exam &amp; Deadline Overlap Analyzer · Gemini 3.8 Flash + Offline Backup</p>
+      <p class="sub">CMU Exam &amp; Deadline Overlap Analyzer · Live fetch with Gemini 3.5 Flash Lite</p>
     </div>
     <div class="row">
       <button onclick="pinBaseline()">Pin as Baseline</button>
@@ -238,14 +248,14 @@
     <div class="live-bar">
       <div class="row">
         <label for="apiKey">Gemini API Key (Real-Time Fetch):</label>
-        <input id="apiKey" type="password" placeholder="AIza... (optional · uses gemini-3.8-flash)" style="width:265px" />
+        <input id="apiKey" type="password" placeholder="AIza... (uses gemini-3.5-flash-lite)" style="width:245px" />
         <label style="display:flex;align-items:center;gap:5px;">
           <input id="alwaysLive" type="checkbox" /> Always fetch live
         </label>
         <button class="primary" onclick="fetchAllLive()">Fetch All Live Now</button>
       </div>
       <span style="font-size:0.78rem;color:var(--muted)">
-        Local server tip: <code>python3 -m http.server 8080</code>
+        If opened via <code>file://</code> and blocked, run <code>python3 -m http.server 8080</code>
       </span>
     </div>
 
@@ -278,6 +288,7 @@
     <div id="cards" class="cards"></div>
   </section>
 
+  <div id="apiErr" class="api-err"></div>
   <div id="verdict" class="verdict"></div>
   <div id="delta" class="delta"></div>
   <div id="notFoundBox" class="not-found"></div>
@@ -312,6 +323,7 @@
 </div>
 
 <script>
+const MODEL = "gemini-3.5-flash-lite"; // free tier on this project: 15 requests/min, 500/day
 const CATALOG = {
   "15-210": {
     label: "15-210 (Parallel Alg)",
@@ -559,7 +571,7 @@ function renderCards() {
           <span class="status-pill ${statusClass}">${statusText}</span>
         </div>
         <div class="row" style="gap:4px;">
-          <button class="mini" title="Fetch live via Gemini 3.8 Flash">↻ Live</button>
+          <button class="mini" title="Fetch live via Gemini">↻ Live</button>
           <button class="ghost" title="Remove course">×</button>
         </div>
       </div>
@@ -606,7 +618,7 @@ function getCardEvents(card) {
   }
   if (liveCache.has(code)) {
     const cached = liveCache.get(code);
-    if (alwaysLive || !(CATALOG[ALIASES[code] || code])) {
+    if ((alwaysLive && cached.length) || !(CATALOG[ALIASES[code] || code])) {
       return { items: cached, missing: cached.length === 0, source: "live" };
     }
   }
@@ -623,6 +635,26 @@ function getCardEvents(card) {
     };
   }
   return { items: [], missing: true, source: "none" };
+}
+
+function showApiError(msg, soft = false) {
+  const box = document.getElementById("apiErr");
+  if (!msg) { box.style.display = "none"; box.textContent = ""; return; }
+  box.style.display = "block";
+  box.style.background = soft ? "#fffbeb" : "";
+  box.style.borderColor = soft ? "#fcd34d" : "";
+  box.style.color = soft ? "#92400e" : "";
+  box.textContent = msg;
+}
+
+function isQuotaError(err) {
+  return /quota|rate limit|resource_exhausted|\b429\b/i.test(String(err && err.message));
+}
+
+function quotaNote(code) {
+  return CATALOG[ALIASES[code] || code]
+    ? `Gemini's free-tier limit was hit while fetching ${code}, so this shows the dates already pulled from its course page. Try again in a minute.`
+    : `Gemini's free-tier limit was hit while fetching ${code}. Paste its dates into the card, or try again in a minute.`;
 }
 
 function extractInteractionText(data) {
@@ -646,74 +678,64 @@ function extractInteractionText(data) {
 
 async function fetchLiveFromGemini(card) {
   const apiKey = document.getElementById("apiKey").value.trim();
-  if (!apiKey) return;
+  if (!apiKey) throw new Error("Enter a Gemini API key at the top to fetch live data.");
   const sem = document.getElementById("sem").value.trim() || "Fall 2026";
   const code = card.code.trim();
   const prompt = card.url
     ? `Read ${card.url} for CMU ${code} (${sem}). Extract every dated exam, midterm, final, quiz, and homework/lab/project due date. If year is omitted, take it from ${sem}. Never guess dates. Return ONLY a JSON array of objects with keys: course, kind (exam|midterm|final|quiz|due), title, date (YYYY-MM-DD), source_url.`
     : `Search Google for CMU ${code} ${sem} official schedule. Check semester/year on the page; reject pages older than 2025. Extract every dated exam, midterm, final, quiz, and due date. Return ONLY a JSON array of objects with keys: course, kind (exam|midterm|final|quiz|due), title, date (YYYY-MM-DD), source_url. If no valid page is found, return [].`;
 
-  let rawText = "";
-  try {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        tools: [{ url_context: {} }, { google_search: {} }]
-      })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
-    rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || "").join("") || "";
-  } catch (e) {
-    console.warn(`generateContent fallback for ${code}:`, e.message);
-    const res2 = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-      body: JSON.stringify({
-        model: "gemini-3.8-flash",
-        input: prompt,
-        tools: [{ type: "url_context" }, { type: "google_search" }],
-        store: false
-      })
-    });
-    const data2 = await res2.json();
-    if (!res2.ok) throw new Error(data2?.error?.message || `HTTP ${res2.status}`);
-    rawText = extractInteractionText(data2);
-  }
+  const res = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+    body: JSON.stringify({
+      model: MODEL,
+      input: prompt,
+      tools: [{ type: "url_context" }, { type: "google_search" }],
+      store: false
+    })
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(`${res.status} ${data?.error?.message || ""}`.trim());
 
+  const rawText = extractInteractionText(data);
   const match = rawText.match(/\[[\s\S]*\]/);
-  if (!match) return;
-  const parsed = JSON.parse(match[0]).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x.date));
-  if (parsed.length) {
-    liveCache.set(code, parsed.map(x => ({
-      course: code,
-      kind: (x.kind || "due").toLowerCase(),
-      title: x.title,
-      date: x.date,
-      url: x.source_url || card.url || ""
-    })));
+  if (!match) {
+    liveCache.set(code, []);
+    return;
   }
+  const parsed = JSON.parse(match[0]).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x.date));
+  liveCache.set(code, parsed.map(x => ({
+    course: code,
+    kind: (x.kind || "due").toLowerCase(),
+    title: x.title,
+    date: x.date,
+    url: x.source_url || card.url || ""
+  })));
 }
 
 async function refreshOneLive(idx) {
+  showApiError("");
   const card = courseCards[idx];
   if (!card?.code.trim()) return;
-  document.getElementById("verdict").textContent = `Checking ${card.code}...`;
+  document.getElementById("verdict").textContent = `Fetching ${card.code} live via Gemini...`;
   try {
     await fetchLiveFromGemini(card);
+    card.autoFilled = true; // allow live result to display cleanly if overriding defaultText
     document.getElementById("alwaysLive").checked = true;
+    renderCards();
+    runAll(false);
   } catch (err) {
-    console.warn(`Silent fallback for ${card.code}:`, err.message);
+    if (isQuotaError(err)) showApiError(quotaNote(card.code), true);
+    else showApiError(`Live fetch error for ${card.code}: ${err.message}`);
+    analyze();
   }
-  renderCards();
-  runAll(false);
 }
 
 async function fetchAllLive() {
+  showApiError("");
   if (!document.getElementById("apiKey").value.trim()) {
-    runAll(false);
+    showApiError("Paste a Gemini API key in the top bar first to run real-time fetching.");
     return;
   }
   document.getElementById("alwaysLive").checked = true;
@@ -724,15 +746,19 @@ async function runAll(allowLiveFetch = false) {
   const apiKey = document.getElementById("apiKey").value.trim();
   const alwaysLive = document.getElementById("alwaysLive").checked;
   if (allowLiveFetch && apiKey) {
-    document.getElementById("verdict").textContent = "Fetching live schedules via Gemini 3.8 Flash...";
+    showApiError("");
+    document.getElementById("verdict").textContent = "Fetching live schedules via Gemini...";
     for (const card of courseCards) {
       const code = card.code.trim();
       const key = ALIASES[code] || code;
       const hasPasted = Boolean(card.text.trim());
-      const needsFetch = alwaysLive ? !hasPasted : (!hasPasted && !CATALOG[key] && !liveCache.has(code));
+      const needsFetch = !hasPasted && !liveCache.has(code) && (alwaysLive || !CATALOG[key]);
       if (code && needsFetch) {
         try { await fetchLiveFromGemini(card); }
-        catch (err) { console.warn(`Silent fallback for ${code}:`, err.message); }
+        catch (err) {
+          if (isQuotaError(err)) { showApiError(quotaNote(code), true); break; }
+          showApiError(`Live fetch error for ${code}: ${err.message}`);
+        }
       }
     }
     renderCards();
@@ -751,7 +777,7 @@ async function runAll(allowLiveFetch = false) {
   const nf = document.getElementById("notFoundBox");
   if (missing.length) {
     nf.style.display = "block";
-    nf.textContent = `Not found (year < 2025 or no readable dates): ${missing.join(", ")} — paste dates into that card to include it.`;
+    nf.textContent = `Not found (year < 2025 or no readable dates): ${missing.join(", ")} — paste dates or fetch live with a Gemini API key.`;
   } else {
     nf.style.display = "none";
   }
